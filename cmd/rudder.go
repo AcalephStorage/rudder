@@ -44,7 +44,7 @@ func main() {
 		cli.StringFlag{
 			Name:   tillerAddressFlag,
 			Usage:  "tiller address",
-			EnvVar: "RUDDER_ADDRESS",
+			EnvVar: "RUDDER_TILLER_ADDRESS",
 			Value:  "localhost:44134",
 		},
 		cli.StringFlag{
