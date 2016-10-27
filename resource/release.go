@@ -29,7 +29,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON)
 
-	ws.Route(ws.GET("/").To(rr.listReleases).
+	ws.Route(ws.GET("").To(rr.listReleases).
 		Doc("list releases").
 		Operation("listReleases").
 		Param(ws.QueryParameter("limit", "max number of releases to return")).

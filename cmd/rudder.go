@@ -3,16 +3,21 @@ package main
 import (
 	"os"
 
+	"encoding/json"
+	"net/http"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	restfullog "github.com/emicklei/go-restful/log"
 	"github.com/emicklei/go-restful/swagger"
+	"github.com/ghodss/yaml"
 	"github.com/urfave/cli"
+	"k8s.io/helm/pkg/repo"
 
 	"github.com/AcalephStorage/rudder/client"
 	"github.com/AcalephStorage/rudder/filter"
 	"github.com/AcalephStorage/rudder/resource"
-	"net/http"
+	"io/ioutil"
 )
 
 const (
@@ -22,6 +27,7 @@ const (
 	tillerAddressFlag = "tiller-address"
 	authUsernameFlag  = "auth-username"
 	authPasswordFlag  = "auth-password"
+	helmRepoFileFlag  = "helm-repo-file"
 	swaggerUIPathFlag = "swagger-ui-path"
 	debugFlag         = "debug"
 )
@@ -58,6 +64,11 @@ func main() {
 			EnvVar: "RUDDER_AUTH_PASSWORD",
 		},
 		cli.StringFlag{
+			Name:   helmRepoFileFlag,
+			Usage:  "helm repo file",
+			EnvVar: "RUDDER_HELM_REPO_FILE",
+		},
+		cli.StringFlag{
 			Name:   swaggerUIPathFlag,
 			Usage:  "swagger ui path",
 			EnvVar: "RUDDER_SWAGGER_UI_PATH",
@@ -87,6 +98,7 @@ func startRudder(ctx *cli.Context) error {
 	tillerAddress := ctx.String(tillerAddressFlag)
 	authUsername := ctx.String(authUsernameFlag)
 	authPassword := ctx.String(authPasswordFlag)
+	helmRepoFile := ctx.String(helmRepoFileFlag)
 	swaggerUIPath := ctx.String(swaggerUIPathFlag)
 	isDebug := ctx.Bool(debugFlag)
 
@@ -125,6 +137,22 @@ func startRudder(ctx *cli.Context) error {
 	releaseResource := resource.NewReleaseResource(tillerClient)
 	releaseResource.Register(container)
 	log.Info("release resource registered.")
+	// repo resource (TODO: refactor pls)
+	repoFileYAML, err := ioutil.ReadFile(helmRepoFile)
+	if err != nil {
+		log.Fatalf("unable to read repo file at %s", helmRepoFile)
+	}
+	repoFileJSON, err := yaml.YAMLToJSON(repoFileYAML)
+	if err != nil {
+		log.Fatal("unable to convert yaml to json")
+	}
+	var repoFile repo.RepoFile
+	if err := json.Unmarshal(repoFileJSON, &repoFile); err != nil {
+		log.Fatal("unable to parse repoFile")
+	}
+	repoResource := resource.NewRepoResource(&repoFile)
+	repoResource.Register(container)
+	log.Info("repo resource registered.")
 
 	// enable swagger
 	swaggerConfig := swagger.Config{

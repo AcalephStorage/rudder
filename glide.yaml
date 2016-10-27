@@ -12,6 +12,7 @@ import:
   subpackages:
   - pkg/helm
   - pkg/version
+  - pkg/repo
   - pkg/proto/hapi/services
   - pkg/proto/hapi/release
 - package: github.com/urfave/cli
@@ -20,3 +21,4 @@ import:
   version: ~1.0.3
   subpackages:
   - metadata
+- package: github.com/ghodss/yaml
