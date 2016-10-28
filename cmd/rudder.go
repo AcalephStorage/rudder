@@ -15,21 +15,24 @@ import (
 	"k8s.io/helm/pkg/repo"
 
 	"github.com/AcalephStorage/rudder/client"
+	"github.com/AcalephStorage/rudder/controller"
 	"github.com/AcalephStorage/rudder/filter"
 	"github.com/AcalephStorage/rudder/resource"
 	"io/ioutil"
+	"time"
 )
 
 const (
 	appName = "rudder"
 
-	addressFlag       = "address"
-	tillerAddressFlag = "tiller-address"
-	authUsernameFlag  = "auth-username"
-	authPasswordFlag  = "auth-password"
-	helmRepoFileFlag  = "helm-repo-file"
-	swaggerUIPathFlag = "swagger-ui-path"
-	debugFlag         = "debug"
+	addressFlag               = "address"
+	tillerAddressFlag         = "tiller-address"
+	authUsernameFlag          = "auth-username"
+	authPasswordFlag          = "auth-password"
+	helmRepoFileFlag          = "helm-repo-file"
+	helmRepoCacheLifetimeFlag = "helm-repo-cache-lifetime"
+	swaggerUIPathFlag         = "swagger-ui-path"
+	debugFlag                 = "debug"
 )
 
 var (
@@ -68,6 +71,12 @@ func main() {
 			Usage:  "helm repo file",
 			EnvVar: "RUDDER_HELM_REPO_FILE",
 		},
+		cli.IntFlag{
+			Name:   helmRepoCacheLifetimeFlag,
+			Usage:  "cache lifetime before it gets updated (mins)",
+			EnvVar: "RUDDER_HELM_REPO_CACHE_LIFETIME",
+			Value:  10,
+		},
 		cli.StringFlag{
 			Name:   swaggerUIPathFlag,
 			Usage:  "swagger ui path",
@@ -99,6 +108,7 @@ func startRudder(ctx *cli.Context) error {
 	authUsername := ctx.String(authUsernameFlag)
 	authPassword := ctx.String(authPasswordFlag)
 	helmRepoFile := ctx.String(helmRepoFileFlag)
+	helmRepoCacheLifetime := ctx.Int(helmRepoCacheLifetimeFlag)
 	swaggerUIPath := ctx.String(swaggerUIPathFlag)
 	isDebug := ctx.Bool(debugFlag)
 
@@ -131,12 +141,14 @@ func startRudder(ctx *cli.Context) error {
 	container.Filter(authFilter.BasicAuthentication)
 	log.Info("Auth filter added")
 
-	// tiller client
+	// releaseController
 	tillerClient := client.NewTillerClient(tillerAddress)
+	releaseController := controller.NewReleaseController(tillerClient)
 	// release resource
-	releaseResource := resource.NewReleaseResource(tillerClient)
+	releaseResource := resource.NewReleaseResource(releaseController)
 	releaseResource.Register(container)
 	log.Info("release resource registered.")
+
 	// repo resource (TODO: refactor pls)
 	repoFileYAML, err := ioutil.ReadFile(helmRepoFile)
 	if err != nil {
@@ -150,7 +162,8 @@ func startRudder(ctx *cli.Context) error {
 	if err := json.Unmarshal(repoFileJSON, &repoFile); err != nil {
 		log.Fatal("unable to parse repoFile")
 	}
-	repoResource := resource.NewRepoResource(&repoFile)
+	repoController := controller.NewRepoController(repoFile.Repositories, (time.Duration(helmRepoCacheLifetime) * time.Minute))
+	repoResource := resource.NewRepoResource(repoController)
 	repoResource.Register(container)
 	log.Info("repo resource registered.")
 

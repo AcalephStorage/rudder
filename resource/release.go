@@ -1,24 +1,49 @@
 package resource
 
 import (
-	"net/http"
+	"strconv"
+	"strings"
 
-	"github.com/AcalephStorage/rudder/client"
+	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	"k8s.io/helm/pkg/proto/hapi/release"
 	tiller "k8s.io/helm/pkg/proto/hapi/services"
-	"strconv"
-	"strings"
+
+	"github.com/AcalephStorage/rudder/controller"
+	"github.com/AcalephStorage/rudder/util"
+)
+
+var (
+	sortByMap = map[string]tiller.ListSort_SortBy{
+		"unknown":       tiller.ListSort_UNKNOWN,
+		"name":          tiller.ListSort_NAME,
+		"last-released": tiller.ListSort_LAST_RELEASED,
+	}
+	sortOrderMap = map[string]tiller.ListSort_SortOrder{
+		"asc":  tiller.ListSort_ASC,
+		"desc": tiller.ListSort_DESC,
+	}
+	statusCodeMap = map[string]release.Status_Code{
+		"unknown":    release.Status_UNKNOWN,
+		"deployed":   release.Status_DEPLOYED,
+		"deleted":    release.Status_DELETED,
+		"superseded": release.Status_SUPERSEDED,
+		"failed":     release.Status_FAILED,
+	}
+)
+
+var (
+	errFailToListReleases = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
 )
 
 type ReleaseResource struct {
-	tillerClient *client.TillerClient
+	controller *controller.ReleaseController
 }
 
-func NewReleaseResource(tillerClient *client.TillerClient) *ReleaseResource {
-	return &ReleaseResource{tillerClient: tillerClient}
+func NewReleaseResource(controller *controller.ReleaseController) *ReleaseResource {
+	return &ReleaseResource{controller: controller}
 }
 
 func (rr *ReleaseResource) Register(container *restful.Container) {
@@ -36,7 +61,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Param(ws.QueryParameter("offset", "last release name that was seen")).
 		Param(ws.QueryParameter("sort-by", "sort by: unknown, name, last-released")).
 		Param(ws.QueryParameter("filter", "regex to filter releases")).
-		Param(ws.QueryParameter("sort-order", "0 asc, 1 desc")).
+		Param(ws.QueryParameter("sort-order", "sort order: asc, desc")).
 		Param(ws.QueryParameter("status-code", "0unknown, 1deployed, 2deleted 3superseded 4 failed")).
 		Writes(tiller.ListReleasesResponse{}))
 	log.Debug("listReleases registered.")
@@ -58,65 +83,37 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 func (rr *ReleaseResource) listReleases(req *restful.Request, res *restful.Response) {
 	log.Info("Getting list of releases...")
 
-	request := &tiller.ListReleasesRequest{}
-	// set limit
-	limit, err := strconv.ParseInt(req.QueryParameter("limit"), 10, 64)
-	if err == nil {
-		request.Limit = limit
-	}
-	// offset
+	limit, _ := strconv.ParseInt(req.QueryParameter("limit"), 10, 64)
 	offset := req.QueryParameter("offset")
-	if offset != "" {
-		request.Offset = offset
-	}
-	// sortBy
-	sortByRaw := req.QueryParameter("sort-by")
-	sortByMap := map[string]tiller.ListSort_SortBy{
-		"unknown":       tiller.ListSort_UNKNOWN,
-		"name":          tiller.ListSort_NAME,
-		"last-released": tiller.ListSort_LAST_RELEASED,
-	}
-	sortBy, ok := sortByMap[sortByRaw]
-	if ok {
-		request.SortBy = sortBy
-	}
-	// filter
+	sortBy := sortByMap[req.QueryParameter("sort-by")]
 	filter := req.QueryParameter("filter")
-	if filter != "" {
-		request.Filter = filter
-	}
-	// statusCode
+	sortOrder := sortOrderMap[req.QueryParameter("sort-order")]
 	statusCodesRaw := req.QueryParameter("status-code")
-	statusCodeMap := map[string]release.Status_Code{
-		"unknown":    release.Status_UNKNOWN,
-		"deployed":   release.Status_DEPLOYED,
-		"deleted":    release.Status_DELETED,
-		"superseded": release.Status_SUPERSEDED,
-		"failed":     release.Status_FAILED,
-	}
-	if statusCodesRaw != "" {
-		scs := strings.Split(statusCodesRaw, ",")
-		statusCodes := make([]release.Status_Code, len(scs))
-		for i, s := range scs {
-			sc, ok := statusCodeMap[s]
-			if ok {
-				statusCodes[i] = sc
-			}
-		}
-		if len(statusCodes) > 0 {
-			request.StatusCodes = statusCodes
+	scs := strings.Split(statusCodesRaw, ",")
+	statusCodes := make([]release.Status_Code, len(scs))
+	for i, s := range scs {
+		sc, ok := statusCodeMap[s]
+		if ok {
+			statusCodes[i] = sc
 		}
 	}
 
-	response, err := rr.tillerClient.ListReleases(request)
+	request := &tiller.ListReleasesRequest{
+		Limit:       limit,
+		Offset:      offset,
+		SortBy:      sortBy,
+		Filter:      filter,
+		SortOrder:   sortOrder,
+		StatusCodes: statusCodes,
+	}
+
+	response, err := rr.controller.ListReleases(request)
 	if err != nil {
-		log.WithError(err).Error("unable to get list releases response from tiller")
-		res.WriteErrorString(http.StatusInternalServerError, err.Error())
+		util.ErrorResponse(res, errFailToListReleases)
 		return
 	}
 	if err := res.WriteEntity(response); err != nil {
-		log.WithError(err).Error("unable to write list releases response")
-		res.WriteErrorString(http.StatusInternalServerError, err.Error())
+		util.ErrorResponse(res, util.ErrFailToWriteResponse)
 	}
 }
 
