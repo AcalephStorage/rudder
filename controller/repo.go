@@ -1,33 +1,46 @@
 package controller
 
 import (
+	"errors"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 
-	"archive/tar"
-	"compress/gzip"
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
+	"crypto/md5"
+	"encoding/base64"
+	"encoding/hex"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ghodss/yaml"
-	"io"
+	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/repo"
+
+	"github.com/AcalephStorage/rudder/util"
 )
 
 type RepoController struct {
-	repos               []*repo.Entry
-	repoChartMap        map[string]map[string]repo.ChartVersions
-	repoChartUpdatedMap map[string]time.Time
-	cacheLifetime       time.Duration
+	repos         []*repo.Entry
+	cacheDir      string
+	cacheLifetime time.Duration
 }
 
-func NewRepoController(repos []*repo.Entry, cacheLifetime time.Duration) *RepoController {
+type ChartDetail struct {
+	Metadata  chart.Metadata         `json:"metadata"`
+	ValuesRaw string                 `json:"values_raw"`
+	Values    map[string]interface{} `json:"values"`
+	Templates map[string]string      `json:"templates"`
+}
+
+func NewRepoController(repos []*repo.Entry, cacheDir string, cacheLifetime time.Duration) *RepoController {
+
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		os.MkdirAll(cacheDir, 0766)
+	}
+
 	return &RepoController{
-		repos:               repos,
-		repoChartMap:        map[string]map[string]repo.ChartVersions{},
-		repoChartUpdatedMap: map[string]time.Time{},
-		cacheLifetime:       cacheLifetime,
+		repos:         repos,
+		cacheDir:      cacheDir,
+		cacheLifetime: cacheLifetime,
 	}
 }
 
@@ -35,127 +48,154 @@ func (rc *RepoController) ListRepos() []*repo.Entry {
 	return rc.repos
 }
 
+func (rc *RepoController) findRepo(repoName string) (r *repo.Entry, err error) {
+	for _, rr := range rc.repos {
+		if rr.Name == repoName {
+			r = rr
+			return
+		}
+	}
+	err = errors.New("repository not found")
+	return
+}
+
 func (rc *RepoController) ListCharts(repoName string) (charts map[string]repo.ChartVersions, err error) {
-	var repoURL string
-	for _, repo := range rc.repos {
-		if repo.Name == repoName {
-			repoURL = repo.URL
-			break
-		}
+	r, err := rc.findRepo(repoName)
+	if err != nil {
+		log.WithError(err).Errorf("unable to find repo %s", repoName)
+		return
 	}
-	// is it cached
-	charts, found := rc.repoChartMap[repoName]
+	repoURL := r.URL
+	indexURL := repoURL + "/index.yaml"
+	data, err := rc.readFromCacheOrURL(indexURL)
+	if err != nil {
+		log.WithError(err).Error("Unable to get index.yaml from cache or %s", indexURL)
+		return
+	}
+	var index repo.IndexFile
+	err = util.YAMLtoJSON(data, &index)
+	if err != nil {
+		log.WithError(err).Error("Unable to parse index.yaml")
+	}
+	charts = index.Entries
+	return
+}
+
+func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string) (chartDetail *ChartDetail, err error) {
+	// update charts if needed
+	charts, err := rc.ListCharts(repoName)
+	if err != nil {
+		log.WithError(err).Errorf("unable to get list of charts for %s", repoName)
+		return
+	}
+	versions := charts[chartName]
+	version, found := findVersion(versions, chartVersion)
 	if !found {
-		// initial fetch if not
-		log.Info("fetching initial chart list")
-		charts, err = fetchCharts(repoURL)
-		if err != nil {
-			return
-		}
-		rc.repoChartMap[repoName] = charts
+		log.Errorf("%s:%s not found", chartName, chartVersion)
+		return
 	}
-	lastUpdated, found := rc.repoChartUpdatedMap[repoName]
-	if !found {
-		// set last updated
-		lastUpdated = time.Now()
-		rc.repoChartUpdatedMap[repoName] = lastUpdated
+	// get the first URL
+	chartURL := version.URLs[0]
+	data, err := rc.readFromCacheOrURL(chartURL)
+	if err != nil {
+		log.WithError(err).Errorf("Unable to get chart from cache or %s", chartURL)
+		return
 	}
-	cacheLife := time.Now().Sub(lastUpdated)
-	// is it expired
-	if cacheLife >= rc.cacheLifetime {
-		// update charts if it is
-		log.Info("updating chart list")
-		charts, err = fetchCharts(repoURL)
-		if err != nil {
-			return
+	fileMap, err := util.TarballToMap(data)
+	if err != nil {
+		log.WithError(err).Errorf("Unable to read tarball")
+		return
+	}
+
+	var m chart.Metadata
+	chartYAML := fileMap[chartName+"/Chart.yaml"]
+	err = util.YAMLtoJSON(chartYAML, &m)
+	if err != nil {
+		log.WithError(err).Errorf("Unable to unmarshal chart")
+		return
+	}
+
+	var v map[string]interface{}
+	valuesYAML := fileMap[chartName+"/values.yaml"]
+	vrxp := regexp.MustCompile("# ")
+	valuesYAML = vrxp.ReplaceAll(valuesYAML, []byte(""))
+	util.YAMLtoJSON(valuesYAML, &v)
+	if err != nil {
+		log.WithError(err).Errorf("Unable to unmarshal values")
+		return
+	}
+	valuesRaw := base64.StdEncoding.EncodeToString(valuesYAML)
+
+	regex := regexp.MustCompile(".+/templates/(.+)")
+	templates := make(map[string]string)
+	for k, v := range fileMap {
+		if strings.Contains(k, "templates/") {
+			file := regex.FindStringSubmatch(k)[1]
+			templates[file] = base64.StdEncoding.EncodeToString(v)
 		}
-		rc.repoChartMap[repoName] = charts
-		rc.repoChartUpdatedMap[repoName] = time.Now()
+	}
+
+	chartDetail = &ChartDetail{
+		Metadata:  m,
+		ValuesRaw: valuesRaw,
+		Values:    v,
+		Templates: templates,
 	}
 	return
 }
 
-func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string) {
-	// update charts if needed
-	charts, err := rc.ListCharts(repoName)
-	if err != nil {
-		// unable to get charts
-		return
-	}
-	versions := charts[chartName]
-	var chartURLs []string
-	for _, version := range versions {
-		if version.Version == chartVersion {
-			chartURLs = version.URLs
-			break
-		}
-	}
-	if chartURLs == nil {
-		// version not found
-		return
-	}
-	for _, chartURL := range chartURLs {
-		fetchTarball(chartURL)
-	}
-	// loop through the URL, download, untar, create data struct, then return.
-}
+func (rc *RepoController) readFromCacheOrURL(url string) ([]byte, error) {
+	log.Debugf("Fetching resource from cache or %s...", url)
+	mustReload := false
 
-func fetchCharts(repoURL string) (map[string]repo.ChartVersions, error) {
-	indexURL := repoURL + "/index.yaml"
-	indexRes, err := http.Get(indexURL)
-	if err != nil {
-		// unable to get index.yaml
-		log.WithError(err).Errorf("unable to get repository index at %s", repoURL)
-		return nil, err
-	}
-	body := indexRes.Body
-	defer body.Close()
-	indexYAML, err := ioutil.ReadAll(body)
-	if err != nil {
-		// unable to read index.yaml
-		log.WithError(err).Error("unable to read index.yaml from response body")
-		return nil, err
-	}
-	indexJSON, err := yaml.YAMLToJSON(indexYAML)
-	if err != nil {
-		log.WithError(err).Errorf("unable to convert index.yaml to JSON")
-		return nil, err
-	}
-	var index repo.IndexFile
-	if err := json.Unmarshal(indexJSON, &index); err != nil {
-		log.WithError(err).Errorf("unable to unmarshal index JSON")
-		return nil, err
-	}
-	return index.Entries, nil
-}
+	hasher := md5.New()
+	hasher.Write([]byte(url))
+	cacheFile := hex.EncodeToString(hasher.Sum(nil))
 
-func fetchTarball(url string) error {
-	res, err := http.Get(url)
+	filePath := rc.cacheDir + "/" + cacheFile
+	log.Debugf("checking cache: %s", filePath)
+	fi, err := os.Stat(filePath)
 	if err != nil {
-		// log pls
-		return err
+		// file may not exist : needs debug log
+		log.Debug("cache not found")
+		mustReload = true
+	} else {
+		// outdated
+		log.Debug("cache found")
+		mustReload = util.IsOutdated(fi.ModTime(), rc.cacheLifetime)
 	}
-	defer res.Body.Close()
-	gzr, err := gzip.NewReader(res.Body)
-	if err != nil {
-		return err
-	}
-	tr := tar.NewReader(gzr)
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			// end of file
-			break
-		}
+
+	if mustReload {
+		log.Debug("cache not found or outdated. getting from URL")
+		// get from url
+		out, err := util.HttpGET(url)
 		if err != nil {
-			// something went wrong
+			// unable to download
+			log.Debugf("unable to download from %s", url)
+			return nil, err
 		}
-		log.Infof("tar: %v -- %v", header.Typeflag, header.Name)
-		log.Info("-----")
-		out, _ := ioutil.ReadAll(tr)
-		log.Info(string(out))
-		log.Info("-----")
+		// save to file
+		if err := util.WriteFile(filePath, out); err != nil {
+			log.Debugf("unable to save to file %s", filePath)
+			return nil, err
+		}
 	}
-	// cool. got everything. just need to serve it.
-	return nil
+
+	data, err := util.ReadFile(filePath)
+	if err != nil {
+		log.Debugf("unable to read from %s", filePath)
+		return nil, err
+	}
+	return data, nil
+}
+
+func findVersion(versions repo.ChartVersions, version string) (ver *repo.ChartVersion, found bool) {
+	for _, v := range versions {
+		if v.Version == version {
+			ver = v
+			found = true
+			break
+		}
+	}
+	return
 }

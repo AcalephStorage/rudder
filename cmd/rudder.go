@@ -30,6 +30,7 @@ const (
 	authUsernameFlag          = "auth-username"
 	authPasswordFlag          = "auth-password"
 	helmRepoFileFlag          = "helm-repo-file"
+	helmCacheDirFlag          = "helm-cache-dir"
 	helmRepoCacheLifetimeFlag = "helm-repo-cache-lifetime"
 	swaggerUIPathFlag         = "swagger-ui-path"
 	debugFlag                 = "debug"
@@ -71,6 +72,12 @@ func main() {
 			Usage:  "helm repo file",
 			EnvVar: "RUDDER_HELM_REPO_FILE",
 		},
+		cli.StringFlag{
+			Name:   helmCacheDirFlag,
+			Usage:  "helm cache dir",
+			EnvVar: "RUDDER_HELM_CACHE_DIR",
+			Value:  "/opt/rudder/cache",
+		},
 		cli.IntFlag{
 			Name:   helmRepoCacheLifetimeFlag,
 			Usage:  "cache lifetime before it gets updated (mins)",
@@ -98,6 +105,7 @@ func startRudder(ctx *cli.Context) error {
 	logFormat := &log.TextFormatter{FullTimestamp: true}
 	log.SetFormatter(logFormat)
 	restfulLogger := log.New()
+	restfulLogger.Formatter = logFormat
 	restfullog.SetLogger(restfulLogger)
 
 	log.Info("Starting Rudder...")
@@ -108,6 +116,7 @@ func startRudder(ctx *cli.Context) error {
 	authUsername := ctx.String(authUsernameFlag)
 	authPassword := ctx.String(authPasswordFlag)
 	helmRepoFile := ctx.String(helmRepoFileFlag)
+	helmCacheDir := ctx.String(helmCacheDirFlag)
 	helmRepoCacheLifetime := ctx.Int(helmRepoCacheLifetimeFlag)
 	swaggerUIPath := ctx.String(swaggerUIPathFlag)
 	isDebug := ctx.Bool(debugFlag)
@@ -162,7 +171,8 @@ func startRudder(ctx *cli.Context) error {
 	if err := json.Unmarshal(repoFileJSON, &repoFile); err != nil {
 		log.Fatal("unable to parse repoFile")
 	}
-	repoController := controller.NewRepoController(repoFile.Repositories, (time.Duration(helmRepoCacheLifetime) * time.Minute))
+	cacheDur := (time.Duration(helmRepoCacheLifetime) * time.Minute)
+	repoController := controller.NewRepoController(repoFile.Repositories, helmCacheDir, cacheDur)
 	repoResource := resource.NewRepoResource(repoController)
 	repoResource.Register(container)
 	log.Info("repo resource registered.")

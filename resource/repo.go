@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	errFailToGetCharts = restful.NewError(http.StatusBadRequest, "unable to fetch charts")
+	errFailToGetCharts      = restful.NewError(http.StatusBadRequest, "unable to fetch charts")
+	errFailToGetChartDetail = restful.NewError(http.StatusBadRequest, "unable to fetch chart details")
 )
 
 type RepoResource struct {
@@ -49,7 +50,8 @@ func (rr *RepoResource) Register(container *restful.Container) {
 		Operation("getChart").
 		Param(ws.PathParameter("repo", "the helm repository")).
 		Param(ws.PathParameter("chart", "the helm chart")).
-		Param(ws.PathParameter("version", "the helm chart version")))
+		Param(ws.PathParameter("version", "the helm chart version")).
+		Writes(controller.ChartDetail{}))
 
 	container.Add(ws)
 }
@@ -81,6 +83,14 @@ func (rr *RepoResource) getChart(req *restful.Request, res *restful.Response) {
 	chartName := req.PathParameter("chart")
 	chartVersion := req.PathParameter("version")
 
-	rr.controller.ChartDetails(repoName, chartName, chartVersion)
+	chartDetail, err := rr.controller.ChartDetails(repoName, chartName, chartVersion)
+	if err != nil {
+		util.ErrorResponse(res, errFailToGetChartDetail)
+		return
+	}
+
+	if err := res.WriteEntity(chartDetail); err != nil {
+		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+	}
 	// return whatever is returned from this
 }
