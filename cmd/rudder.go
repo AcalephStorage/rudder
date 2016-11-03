@@ -14,10 +14,10 @@ import (
 	"github.com/urfave/cli"
 	"k8s.io/helm/pkg/repo"
 
-	"github.com/AcalephStorage/rudder/client"
-	"github.com/AcalephStorage/rudder/controller"
-	"github.com/AcalephStorage/rudder/filter"
-	"github.com/AcalephStorage/rudder/resource"
+	"github.com/AcalephStorage/rudder/internal/client"
+	"github.com/AcalephStorage/rudder/internal/controller"
+	"github.com/AcalephStorage/rudder/internal/filter"
+	"github.com/AcalephStorage/rudder/internal/resource"
 	"io/ioutil"
 	"time"
 )

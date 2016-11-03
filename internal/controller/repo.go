@@ -15,7 +15,7 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/repo"
 
-	"github.com/AcalephStorage/rudder/util"
+	"github.com/AcalephStorage/rudder/internal/util"
 )
 
 type RepoController struct {

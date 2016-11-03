@@ -1,10 +1,11 @@
 package filter
 
 import (
+	"strings"
+
 	"encoding/base64"
 
 	"github.com/emicklei/go-restful"
-	"strings"
 )
 
 type AuthFilter struct {

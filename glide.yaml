@@ -8,7 +8,7 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ~0.10.0
 - package: k8s.io/helm
-  version: ~2.0.0-beta.2
+  version: 2.0.0-beta.2
   subpackages:
   - pkg/helm
   - pkg/version

@@ -11,8 +11,8 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/release"
 	tiller "k8s.io/helm/pkg/proto/hapi/services"
 
-	"github.com/AcalephStorage/rudder/controller"
-	"github.com/AcalephStorage/rudder/util"
+	"github.com/AcalephStorage/rudder/internal/controller"
+	"github.com/AcalephStorage/rudder/internal/util"
 )
 
 var (

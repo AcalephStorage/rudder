@@ -1,9 +1,10 @@
 package controller
 
 import (
-	"github.com/AcalephStorage/rudder/client"
 	log "github.com/Sirupsen/logrus"
 	tiller "k8s.io/helm/pkg/proto/hapi/services"
+
+	"github.com/AcalephStorage/rudder/internal/client"
 )
 
 type ReleaseController struct {

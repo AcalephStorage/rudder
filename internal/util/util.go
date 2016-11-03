@@ -1,19 +1,19 @@
 package util
 
 import (
+	"bytes"
+	"io"
 	"time"
 
+	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
-	"archive/tar"
-	"bytes"
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	"github.com/ghodss/yaml"
-	"io"
 )
 
 var ErrFailToWriteResponse = restful.NewError(http.StatusInternalServerError, "unable to write response")
