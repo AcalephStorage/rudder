@@ -13,6 +13,7 @@ import (
 
 var (
 	errFailToGetCharts      = restful.NewError(http.StatusBadRequest, "unable to fetch charts")
+	errFailToListVersions   = restful.NewError(http.StatusBadRequest, "unable to fetch chart versions")
 	errFailToGetChartDetail = restful.NewError(http.StatusBadRequest, "unable to fetch chart details")
 )
 
@@ -45,8 +46,15 @@ func (rr *RepoResource) Register(container *restful.Container) {
 		Writes(map[string][]repo.ChartVersion{}))
 	log.Debug("listCharts registered.")
 
+	ws.Route(ws.GET("{repo}/charts/{chart}").To(rr.listVersions).
+		Doc("list chart versions").
+		Operation("listVersions").
+		Param(ws.PathParameter("repo", "the helm repository")).
+		Param(ws.PathParameter("chart", "the helm chart")).
+		Writes([]repo.ChartVersion{}))
+
 	ws.Route(ws.GET("{repo}/charts/{chart}/{version}").To(rr.getChart).
-		Doc("get chart").
+		Doc("get chart details. specifying version=latest will return the chart tagged latest, or the top version if none is found").
 		Operation("getChart").
 		Param(ws.PathParameter("repo", "the helm repository")).
 		Param(ws.PathParameter("chart", "the helm chart")).
@@ -78,6 +86,23 @@ func (rr *RepoResource) listCharts(req *restful.Request, res *restful.Response) 
 	}
 }
 
+func (rr *RepoResource) listVersions(req *restful.Request, res *restful.Response) {
+	repoName := req.PathParameter("repo")
+	chartName := req.PathParameter("chart")
+
+	charts, err := rr.controller.ListCharts(repoName)
+	if err != nil {
+		util.ErrorResponse(res, errFailToListVersions)
+		return
+	}
+
+	versions := charts[chartName]
+	if err := res.WriteEntity(versions); err != nil {
+		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+	}
+
+}
+
 func (rr *RepoResource) getChart(req *restful.Request, res *restful.Response) {
 	repoName := req.PathParameter("repo")
 	chartName := req.PathParameter("chart")
@@ -92,5 +117,4 @@ func (rr *RepoResource) getChart(req *restful.Request, res *restful.Response) {
 	if err := res.WriteEntity(chartDetail); err != nil {
 		util.ErrorResponse(res, util.ErrFailToWriteResponse)
 	}
-	// return whatever is returned from this
 }

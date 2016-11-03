@@ -198,5 +198,10 @@ func findVersion(versions repo.ChartVersions, version string) (ver *repo.ChartVe
 			break
 		}
 	}
+	// if not found but version is latest, return the first item
+	if version == "latest" {
+		ver = versions[0]
+		found = true
+	}
 	return
 }

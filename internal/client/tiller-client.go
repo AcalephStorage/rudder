@@ -35,7 +35,6 @@ func (tc *TillerClient) execute(request func(tiller.ReleaseServiceClient)) error
 func (tc *TillerClient) ListReleases(req *tiller.ListReleasesRequest) (res *tiller.ListReleasesResponse, err error) {
 	log.Info(req)
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
-		log.Info("HERE!!")
 		lrc, err := rsc.ListReleases(tc.context, req)
 		if err != nil {
 			log.Debug("unable to list all resources")
@@ -49,6 +48,7 @@ func (tc *TillerClient) ListReleases(req *tiller.ListReleasesRequest) (res *till
 func (tc *TillerClient) InstallRelease(req *tiller.InstallReleaseRequest) (res *tiller.InstallReleaseResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.InstallRelease(tc.context, req)
+		// needs logging
 	})
 	return
 }
