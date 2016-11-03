@@ -35,8 +35,9 @@ var (
 )
 
 var (
-	errFailToListReleases   = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
-	errFailToInstallRelease = restful.NewError(http.StatusInternalServerError, "unable to install releases")
+	errFailToListReleases      = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
+	errFailToInstallRelease    = restful.NewError(http.StatusInternalServerError, "unable to install releases")
+	errFailtToUninstallRelease = restful.NewError(http.StatusInternalServerError, "unable to uninstall releases")
 )
 
 type InstallReleaseRequest struct {
@@ -81,13 +82,13 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Reads(InstallReleaseRequest{}).
 		Writes(tiller.InstallReleaseResponse{}))
 
+	ws.Route(ws.DELETE("/{release}").To(rr.uninstallRelease).
+		Doc("uninstall release").
+		Operation("uninstallRelease").
+		Param(ws.PathParameter("release", "the release name to be deleted")))
+
 	container.Add(ws)
 
-	// ws.Route(ws.DELETE("/{release}").To(rr.deleteRelease).
-	// 	Doc("delete release").
-	// 	Operation("deleteRelease"))
-
-	// ws.Route(ws)
 }
 
 // GET  api/v1/releases
@@ -150,9 +151,17 @@ func (rr *ReleaseResource) installRelease(req *restful.Request, res *restful.Res
 	}
 }
 
-// DELETE api/v1/releases/:name?disable-hooks&purge {create request body}
-func (rr *ReleaseResource) deleteRelease(req *restful.Request, res *restful.Response) {
-
+// DELETE api/v1/releases/:name {create request body}
+func (rr *ReleaseResource) uninstallRelease(req *restful.Request, res *restful.Response) {
+	releaseName := req.PathParameter("release")
+	out, err := rr.controller.UninstallRelease(releaseName)
+	if err != nil {
+		util.ErrorResponse(res, errFailtToUninstallRelease)
+		return
+	}
+	if err := res.WriteEntity(out); err != nil {
+		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+	}
 }
 
 // GET api/v1/releases/:name/:version/:status {create request body}

@@ -63,10 +63,22 @@ func (rc *ReleaseController) InstallRelease(repo, chart, version, namespace stri
 		Values:    config,
 	}
 
-	// create request here
 	res, err := rc.tillerClient.InstallRelease(req)
 	if err != nil {
 		log.WithError(err).Error("unable to install new release")
+		return nil, err
+	}
+	return res, nil
+}
+
+func (rc *ReleaseController) UninstallRelease(releaseName string) (*tiller.UninstallReleaseResponse, error) {
+	req := &tiller.UninstallReleaseRequest{
+		Name: releaseName,
+	}
+
+	res, err := rc.tillerClient.UninstallRelease(req)
+	if err != nil {
+		log.WithError(err).Error("unable to uninstall release")
 		return nil, err
 	}
 	return res, nil

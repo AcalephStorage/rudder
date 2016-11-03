@@ -37,7 +37,7 @@ func (tc *TillerClient) ListReleases(req *tiller.ListReleasesRequest) (res *till
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		lrc, err := rsc.ListReleases(tc.context, req)
 		if err != nil {
-			log.Debug("unable to list all resources")
+			log.Debug("unable to list all releases")
 			return
 		}
 		res, err = lrc.Recv()
@@ -48,7 +48,19 @@ func (tc *TillerClient) ListReleases(req *tiller.ListReleasesRequest) (res *till
 func (tc *TillerClient) InstallRelease(req *tiller.InstallReleaseRequest) (res *tiller.InstallReleaseResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.InstallRelease(tc.context, req)
-		// needs logging
+		if err != nil {
+			log.Debug("unable to install release")
+		}
+	})
+	return
+}
+
+func (tc *TillerClient) UninstallRelease(req *tiller.UninstallReleaseRequest) (res *tiller.UninstallReleaseResponse, err error) {
+	tc.execute(func(rsc tiller.ReleaseServiceClient) {
+		res, err = rsc.UninstallRelease(tc.context, req)
+		if err != nil {
+			log.Debug("unable to uninstall release")
+		}
 	})
 	return
 }
