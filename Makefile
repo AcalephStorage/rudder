@@ -2,9 +2,6 @@ APP=rudder
 VERSION=latest
 LDFLAGS=-ldflags "-X github.com/AcalephStorage/rudder/cmd.version=${VERSION}"
 
-OS=`go env GOOS`
-ARCH=`go env GOARCH`
-
 all: deps build
 
 clean:
@@ -23,10 +20,11 @@ deps: prereq
 build: prereq
 	@echo '--> building...'
 	@go fmt ./...
-	@GOOS=${OS} GOARCH=${ARCH} go build -o build/bin/${APP} ${LDFLAGS} ./cmd
+	go build -o build/bin/${APP} ${LDFLAGS} ./cmd
 
-package: build
+package:
 	@echo '--> packaging...'
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -o build/bin/${APP} ${LDFLAGS} ./cmd
 	@docker build -t quay.io/acaleph/rudder:${VERSION} .
 
 deploy: package
