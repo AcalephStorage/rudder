@@ -10,6 +10,7 @@ import:
 - package: k8s.io/helm
   version: 2.0.0-rc.1
   subpackages:
+  - pkg/chartutil
   - pkg/helm
   - pkg/version
   - pkg/repo

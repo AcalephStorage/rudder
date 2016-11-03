@@ -1,5 +1,5 @@
-hash: f7f9202a9a577b234572f1d7b8a3f5b9ebac720517cfd14c272bb7f31ff9d401
-updated: 2016-11-03T13:40:43.564305318+08:00
+hash: 5deeaaec01e58400986a6d34604cdddc69172b5e3f46acf4508e1bc9f3359e35
+updated: 2016-11-03T14:54:53.606406987+08:00
 imports:
 - name: github.com/emicklei/go-restful
   version: 777bb3f19bcafe2575ffb2a3e46af92509ae9594

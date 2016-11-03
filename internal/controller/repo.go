@@ -7,9 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"crypto/md5"
 	"encoding/base64"
-	"encoding/hex"
 
 	log "github.com/Sirupsen/logrus"
 	"k8s.io/helm/pkg/proto/hapi/chart"
@@ -29,6 +27,8 @@ type ChartDetail struct {
 	ValuesRaw string                 `json:"values_raw"`
 	Values    map[string]interface{} `json:"values"`
 	Templates map[string]string      `json:"templates"`
+	ChartURL  string                 `json:"-"`
+	ChartFile string                 `json:"-"`
 }
 
 func NewRepoController(repos []*repo.Entry, cacheDir string, cacheLifetime time.Duration) *RepoController {
@@ -135,11 +135,14 @@ func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string)
 		}
 	}
 
+	chartFile := rc.cacheDir + "/" + util.EncodeMD5Hex(chartURL)
 	chartDetail = &ChartDetail{
 		Metadata:  m,
 		ValuesRaw: valuesRaw,
 		Values:    v,
 		Templates: templates,
+		ChartURL:  chartURL,
+		ChartFile: chartFile,
 	}
 	return
 }
@@ -148,9 +151,7 @@ func (rc *RepoController) readFromCacheOrURL(url string) ([]byte, error) {
 	log.Debugf("Fetching resource from cache or %s...", url)
 	mustReload := false
 
-	hasher := md5.New()
-	hasher.Write([]byte(url))
-	cacheFile := hex.EncodeToString(hasher.Sum(nil))
+	cacheFile := util.EncodeMD5Hex(url)
 
 	filePath := rc.cacheDir + "/" + cacheFile
 	log.Debugf("checking cache: %s", filePath)

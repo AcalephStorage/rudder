@@ -11,11 +11,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"crypto/md5"
+	"encoding/hex"
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	"github.com/ghodss/yaml"
 )
 
+var ErrFailToReadResponse = restful.NewError(http.StatusBadRequest, "unable to read request body")
 var ErrFailToWriteResponse = restful.NewError(http.StatusInternalServerError, "unable to write response")
 
 func ErrorResponse(res *restful.Response, err restful.ServiceError) {
@@ -37,6 +40,13 @@ func HttpGET(url string) (out []byte, err error) {
 		out, err = ioutil.ReadAll(res.Body)
 	}
 	return
+}
+
+func EncodeMD5Hex(in string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(in))
+	return hex.EncodeToString(hasher.Sum(nil))
+
 }
 
 func ReadFile(file string) (out []byte, err error) {

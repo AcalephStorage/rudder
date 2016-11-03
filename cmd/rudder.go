@@ -150,14 +150,6 @@ func startRudder(ctx *cli.Context) error {
 	container.Filter(authFilter.BasicAuthentication)
 	log.Info("Auth filter added")
 
-	// releaseController
-	tillerClient := client.NewTillerClient(tillerAddress)
-	releaseController := controller.NewReleaseController(tillerClient)
-	// release resource
-	releaseResource := resource.NewReleaseResource(releaseController)
-	releaseResource.Register(container)
-	log.Info("release resource registered.")
-
 	// repo resource (TODO: refactor pls)
 	repoFileYAML, err := ioutil.ReadFile(helmRepoFile)
 	if err != nil {
@@ -176,6 +168,14 @@ func startRudder(ctx *cli.Context) error {
 	repoResource := resource.NewRepoResource(repoController)
 	repoResource.Register(container)
 	log.Info("repo resource registered.")
+
+	// releaseController
+	tillerClient := client.NewTillerClient(tillerAddress)
+	releaseController := controller.NewReleaseController(tillerClient, repoController)
+	// release resource
+	releaseResource := resource.NewReleaseResource(releaseController)
+	releaseResource.Register(container)
+	log.Info("release resource registered.")
 
 	// enable swagger
 	swaggerConfig := swagger.Config{

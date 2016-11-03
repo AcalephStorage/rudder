@@ -35,8 +35,17 @@ var (
 )
 
 var (
-	errFailToListReleases = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
+	errFailToListReleases   = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
+	errFailToInstallRelease = restful.NewError(http.StatusInternalServerError, "unable to install releases")
 )
+
+type InstallReleaseRequest struct {
+	Repo      string                 `json:"repo"`
+	Chart     string                 `json:"chart"`
+	Version   string                 `json:"version"`
+	Namespace string                 `json:"namespace"`
+	Values    map[string]interface{} `json:"values"`
+}
 
 type ReleaseResource struct {
 	controller *controller.ReleaseController
@@ -68,7 +77,9 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 
 	ws.Route(ws.POST("").To(rr.installRelease).
 		Doc("install release").
-		Operation("installRelease"))
+		Operation("installRelease").
+		Reads(InstallReleaseRequest{}).
+		Writes(tiller.InstallReleaseResponse{}))
 
 	container.Add(ws)
 
@@ -124,7 +135,19 @@ func (rr *ReleaseResource) listReleases(req *restful.Request, res *restful.Respo
 
 // POST api/v1/releases {request body passed}
 func (rr *ReleaseResource) installRelease(req *restful.Request, res *restful.Response) {
-
+	var in InstallReleaseRequest
+	if err := req.ReadEntity(&in); err != nil {
+		util.ErrorResponse(res, util.ErrFailToReadResponse)
+		return
+	}
+	out, err := rr.controller.InstallRelease(in.Repo, in.Chart, in.Version, in.Namespace, in.Values)
+	if err != nil {
+		util.ErrorResponse(res, errFailToInstallRelease)
+		return
+	}
+	if err := res.WriteEntity(out); err != nil {
+		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+	}
 }
 
 // DELETE api/v1/releases/:name?disable-hooks&purge {create request body}
