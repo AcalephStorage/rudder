@@ -15,8 +15,9 @@ clean:
 
 prereq:
 	@mkdir -p build/{bin,tar}
+	@go get -u github.com/Masterminds/glide
 
-deps:
+deps: prereq
 	@glide install
 
 build: prereq
