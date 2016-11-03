@@ -1,5 +1,5 @@
-hash: 47a76f0765360f24b1fabdcd2df4f211cd1f22c22e2c1d980975b3e8a29996a1
-updated: 2016-11-03T12:05:23.030984742+08:00
+hash: f7f9202a9a577b234572f1d7b8a3f5b9ebac720517cfd14c272bb7f31ff9d401
+updated: 2016-11-03T13:40:43.564305318+08:00
 imports:
 - name: github.com/emicklei/go-restful
   version: 777bb3f19bcafe2575ffb2a3e46af92509ae9594
@@ -57,7 +57,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 - name: k8s.io/helm
-  version: 8a5550d0c6785eaa94eac80e0c1d11a92c355a02
+  version: 92be174acf51e60a33287fb7011f4571eaa5cb98
   subpackages:
   - pkg/chartutil
   - pkg/helm
