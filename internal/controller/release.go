@@ -32,7 +32,7 @@ func (rc *ReleaseController) ListReleases(req *tiller.ListReleasesRequest) (*til
 	return res, nil
 }
 
-func (rc *ReleaseController) InstallRelease(repo, chart, version, namespace string, values map[string]interface{}) (*tiller.InstallReleaseResponse, error) {
+func (rc *ReleaseController) InstallRelease(name, namespace, repo, chart, version string, values map[string]interface{}) (*tiller.InstallReleaseResponse, error) {
 	chartDetails, err := rc.repoController.ChartDetails(repo, chart, version)
 	if err != nil {
 		log.WithError(err).Error("unable to get chart details")
@@ -58,8 +58,9 @@ func (rc *ReleaseController) InstallRelease(repo, chart, version, namespace stri
 	}
 
 	req := &tiller.InstallReleaseRequest{
-		Chart:     inChart,
+		Name:      name,
 		Namespace: namespace,
+		Chart:     inChart,
 		Values:    config,
 	}
 
@@ -71,9 +72,10 @@ func (rc *ReleaseController) InstallRelease(repo, chart, version, namespace stri
 	return res, nil
 }
 
-func (rc *ReleaseController) UninstallRelease(releaseName string) (*tiller.UninstallReleaseResponse, error) {
+func (rc *ReleaseController) UninstallRelease(releaseName string, purge bool) (*tiller.UninstallReleaseResponse, error) {
 	req := &tiller.UninstallReleaseRequest{
-		Name: releaseName,
+		Name:  releaseName,
+		Purge: purge,
 	}
 
 	res, err := rc.tillerClient.UninstallRelease(req)

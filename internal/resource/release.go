@@ -41,10 +41,11 @@ var (
 )
 
 type InstallReleaseRequest struct {
+	Name      string                 `json:"name"`
+	Namespace string                 `json:"namespace"`
 	Repo      string                 `json:"repo"`
 	Chart     string                 `json:"chart"`
 	Version   string                 `json:"version"`
-	Namespace string                 `json:"namespace"`
 	Values    map[string]interface{} `json:"values"`
 }
 
@@ -77,7 +78,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 	log.Debug("listReleases registered.")
 
 	ws.Route(ws.POST("").To(rr.installRelease).
-		Doc("install release").
+		Doc("install release. defaults: namespace=default, version=latest.").
 		Operation("installRelease").
 		Reads(InstallReleaseRequest{}).
 		Writes(tiller.InstallReleaseResponse{}))
@@ -85,7 +86,8 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 	ws.Route(ws.DELETE("/{release}").To(rr.uninstallRelease).
 		Doc("uninstall release").
 		Operation("uninstallRelease").
-		Param(ws.PathParameter("release", "the release name to be deleted")))
+		Param(ws.PathParameter("release", "the release name to be deleted")).
+		Param(ws.QueryParameter("purge", "purge the release")))
 
 	container.Add(ws)
 
@@ -136,12 +138,15 @@ func (rr *ReleaseResource) listReleases(req *restful.Request, res *restful.Respo
 
 // POST api/v1/releases {request body passed}
 func (rr *ReleaseResource) installRelease(req *restful.Request, res *restful.Response) {
-	var in InstallReleaseRequest
+	in := InstallReleaseRequest{
+		Namespace: "default",
+		Version:   "latest",
+	}
 	if err := req.ReadEntity(&in); err != nil {
 		util.ErrorResponse(res, util.ErrFailToReadResponse)
 		return
 	}
-	out, err := rr.controller.InstallRelease(in.Repo, in.Chart, in.Version, in.Namespace, in.Values)
+	out, err := rr.controller.InstallRelease(in.Name, in.Namespace, in.Repo, in.Chart, in.Version, in.Values)
 	if err != nil {
 		util.ErrorResponse(res, errFailToInstallRelease)
 		return
@@ -154,7 +159,8 @@ func (rr *ReleaseResource) installRelease(req *restful.Request, res *restful.Res
 // DELETE api/v1/releases/:name {create request body}
 func (rr *ReleaseResource) uninstallRelease(req *restful.Request, res *restful.Response) {
 	releaseName := req.PathParameter("release")
-	out, err := rr.controller.UninstallRelease(releaseName)
+	_, purge := req.Request.URL.Query()["purge"]
+	out, err := rr.controller.UninstallRelease(releaseName, purge)
 	if err != nil {
 		util.ErrorResponse(res, errFailtToUninstallRelease)
 		return
