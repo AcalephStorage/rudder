@@ -23,3 +23,13 @@ func (rc *ReleaseController) ListReleases(req *tiller.ListReleasesRequest) (*til
 	}
 	return res, nil
 }
+
+func (rc *ReleaseController) InstallRelease(repo, chart, version, namespace string, values map[string]interface{}) (*tiller.InstallReleaseResponse, error) {
+	// create request here
+	res, err := rc.tillerClient.InstallRelease(nil)
+	if err != nil {
+		log.WithError(err).Error("unable to install new release")
+		return nil, err
+	}
+	return res, nil
+}

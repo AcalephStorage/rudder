@@ -62,7 +62,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Param(ws.QueryParameter("sort-by", "sort by: unknown, name, last-released")).
 		Param(ws.QueryParameter("filter", "regex to filter releases")).
 		Param(ws.QueryParameter("sort-order", "sort order: asc, desc")).
-		Param(ws.QueryParameter("status-code", "0unknown, 1deployed, 2deleted 3superseded 4 failed")).
+		Param(ws.QueryParameter("status-code", "comma-separated status codes: unknown, deployed, deleted, superseded, failed")).
 		Writes(tiller.ListReleasesResponse{}))
 	log.Debug("listReleases registered.")
 
@@ -89,12 +89,17 @@ func (rr *ReleaseResource) listReleases(req *restful.Request, res *restful.Respo
 	filter := req.QueryParameter("filter")
 	sortOrder := sortOrderMap[req.QueryParameter("sort-order")]
 	statusCodesRaw := req.QueryParameter("status-code")
-	scs := strings.Split(statusCodesRaw, ",")
-	statusCodes := make([]release.Status_Code, len(scs))
-	for i, s := range scs {
-		sc, ok := statusCodeMap[s]
-		if ok {
-			statusCodes[i] = sc
+	var statusCodes []release.Status_Code
+	if len(statusCodesRaw) > 0 {
+		scs := strings.Split(statusCodesRaw, ",")
+		if len(scs) > 0 {
+			statusCodes = make([]release.Status_Code, len(scs))
+			for i, s := range scs {
+				sc, ok := statusCodeMap[s]
+				if ok {
+					statusCodes[i] = sc
+				}
+			}
 		}
 	}
 
