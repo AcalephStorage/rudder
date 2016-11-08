@@ -64,3 +64,23 @@ func (tc *TillerClient) UninstallRelease(req *tiller.UninstallReleaseRequest) (r
 	})
 	return
 }
+
+func (tc *TillerClient) GetReleaseContent(req *tiller.GetReleaseContentRequest) (res *tiller.GetReleaseContentResponse, err error) {
+	tc.execute(func(rsc tiller.ReleaseServiceClient) {
+		res, err = rsc.GetReleaseContent(tc.context, req)
+		if err != nil {
+			log.Debug("unable to get release content")
+		}
+	})
+	return
+}
+
+func (tc *TillerClient) GetReleaseStatus(req *tiller.GetReleaseStatusRequest) (res *tiller.GetReleaseStatusResponse, err error) {
+	tc.execute(func(rsc tiller.ReleaseServiceClient) {
+		res, err = rsc.GetReleaseStatus(tc.context, req)
+		if err != nil {
+			log.Debug("unable to get release status")
+		}
+	})
+	return
+}

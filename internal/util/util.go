@@ -16,6 +16,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	"github.com/ghodss/yaml"
+	"strconv"
 )
 
 var ErrFailToReadResponse = restful.NewError(http.StatusBadRequest, "unable to read request body")
@@ -104,4 +105,9 @@ func TarballToMap(in []byte) (out map[string][]byte, err error) {
 
 	}
 	return
+}
+
+func ToInt32(in string) (out int32) {
+	val, _ := strconv.ParseInt(in, 10, 32)
+	return int32(val)
 }

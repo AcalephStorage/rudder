@@ -38,6 +38,7 @@ var (
 	errFailToListReleases      = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
 	errFailToInstallRelease    = restful.NewError(http.StatusInternalServerError, "unable to install releases")
 	errFailtToUninstallRelease = restful.NewError(http.StatusInternalServerError, "unable to uninstall releases")
+	errFailToGetRelease        = restful.NewError(http.StatusInternalServerError, "unable to get release content and status")
 )
 
 type InstallReleaseRequest struct {
@@ -88,6 +89,13 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Operation("uninstallRelease").
 		Param(ws.PathParameter("release", "the release name to be deleted")).
 		Param(ws.QueryParameter("purge", "purge the release")))
+
+	ws.Route(ws.GET("/{release}/{version}").To(rr.getRelease).
+		Doc("get release").
+		Operation("getRelease").
+		Param(ws.PathParameter("release", "the release name")).
+		Param(ws.PathParameter("version", "the release version")).
+		Writes(controller.GetReleaseResponse{}))
 
 	container.Add(ws)
 
@@ -168,6 +176,23 @@ func (rr *ReleaseResource) uninstallRelease(req *restful.Request, res *restful.R
 	if err := res.WriteEntity(out); err != nil {
 		util.ErrorResponse(res, util.ErrFailToWriteResponse)
 	}
+}
+
+func (rr *ReleaseResource) getRelease(req *restful.Request, res *restful.Response) {
+	name := req.PathParameter("release")
+	versionRaw := req.PathParameter("version")
+	version := util.ToInt32(versionRaw)
+
+	out, err := rr.controller.GetRelease(name, version)
+	if err != nil {
+		util.ErrorResponse(res, errFailToGetRelease)
+		return
+	}
+
+	if err := res.WriteEntity(out); err != nil {
+		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+	}
+
 }
 
 // GET api/v1/releases/:name/:version/:status {create request body}

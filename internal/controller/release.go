@@ -11,6 +11,11 @@ import (
 	"github.com/AcalephStorage/rudder/internal/client"
 )
 
+type GetReleaseResponse struct {
+	Content *tiller.GetReleaseContentResponse `json:"content"`
+	Status  *tiller.GetReleaseStatusResponse  `json:"status"`
+}
+
 type ReleaseController struct {
 	tillerClient   *client.TillerClient
 	repoController *RepoController
@@ -84,4 +89,30 @@ func (rc *ReleaseController) UninstallRelease(releaseName string, purge bool) (*
 		return nil, err
 	}
 	return res, nil
+}
+
+func (rc *ReleaseController) GetRelease(name string, version int32) (*GetReleaseResponse, error) {
+	req := &tiller.GetReleaseContentRequest{
+		Name:    name,
+		Version: version,
+	}
+	content, err := rc.tillerClient.GetReleaseContent(req)
+	if err != nil {
+		log.WithError(err).Error("unable to get release content")
+		return nil, err
+	}
+
+	req2 := &tiller.GetReleaseStatusRequest{
+		Name:    name,
+		Version: version,
+	}
+	status, err := rc.tillerClient.GetReleaseStatus(req2)
+	if err != nil {
+		log.WithError(err).Error("unable to get release status")
+		return nil, err
+	}
+	return &GetReleaseResponse{
+		Content: content,
+		Status:  status,
+	}, nil
 }
