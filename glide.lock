@@ -1,5 +1,5 @@
-hash: 5deeaaec01e58400986a6d34604cdddc69172b5e3f46acf4508e1bc9f3359e35
-updated: 2016-11-03T14:54:53.606406987+08:00
+hash: 2a7d055587482a5cadd50ef4ba47f4e369946f8e7ae4b48ae1d2f1ee6a3b00cd
+updated: 2016-11-08T10:55:33.062021872+08:00
 imports:
 - name: github.com/emicklei/go-restful
   version: 777bb3f19bcafe2575ffb2a3e46af92509ae9594
@@ -21,7 +21,7 @@ imports:
 - name: github.com/urfave/cli
   version: a14d7d367bc02b1f57d88de97926727f2d936387
 - name: golang.org/x/crypto
-  version: ca7e7f10cb9fd9c1a6ff7f60436c086d73714180
+  version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
   subpackages:
   - cast5
   - openpgp
@@ -44,7 +44,7 @@ imports:
   subpackages:
   - unix
 - name: google.golang.org/grpc
-  version: b7f1379d3cbbbeb2ca3405852012e237aa05459e
+  version: 0032a855ba5c8a3c8e0d71c2deef354b70af1584
   subpackages:
   - codes
   - credentials
@@ -57,7 +57,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 - name: k8s.io/helm
-  version: 92be174acf51e60a33287fb7011f4571eaa5cb98
+  version: f8037c83c647b56d9ef42d0d5254e5fc563e3048
   subpackages:
   - pkg/chartutil
   - pkg/helm

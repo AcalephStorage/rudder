@@ -8,7 +8,7 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ~0.10.0
 - package: k8s.io/helm
-  version: 2.0.0-rc.1
+  version: 2.0.0-rc.2
   subpackages:
   - pkg/chartutil
   - pkg/helm
@@ -18,8 +18,6 @@ import:
   - pkg/proto/hapi/release
 - package: github.com/urfave/cli
   version: ~1.18.1
-- package: google.golang.org/grpc
-  version: ~1.0.3
-  subpackages:
-  - metadata
 - package: github.com/ghodss/yaml
+- package: google.golang.org/grpc
+  version: v1.0.1-GA
