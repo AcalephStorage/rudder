@@ -43,6 +43,7 @@ func (rr *RepoResource) Register(container *restful.Container) {
 		Doc("list charts").
 		Operation("listCharts").
 		Param(ws.PathParameter("repo", "the helm repository")).
+		Param(ws.QueryParameter("filter", "filter for the charts")).
 		Writes(map[string][]repo.ChartVersion{}))
 	log.Debug("listCharts registered.")
 
@@ -74,8 +75,9 @@ func (rr *RepoResource) listRepos(req *restful.Request, res *restful.Response) {
 
 func (rr *RepoResource) listCharts(req *restful.Request, res *restful.Response) {
 	repoName := req.PathParameter("repo")
+	filter := req.QueryParameter("filter")
 
-	charts, err := rr.controller.ListCharts(repoName)
+	charts, err := rr.controller.ListCharts(repoName, filter)
 	if err != nil {
 		util.ErrorResponse(res, errFailToGetCharts)
 		return
@@ -90,7 +92,7 @@ func (rr *RepoResource) listVersions(req *restful.Request, res *restful.Response
 	repoName := req.PathParameter("repo")
 	chartName := req.PathParameter("chart")
 
-	charts, err := rr.controller.ListCharts(repoName)
+	charts, err := rr.controller.ListCharts(repoName, chartName)
 	if err != nil {
 		util.ErrorResponse(res, errFailToListVersions)
 		return

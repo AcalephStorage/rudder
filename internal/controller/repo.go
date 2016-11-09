@@ -59,7 +59,7 @@ func (rc *RepoController) findRepo(repoName string) (r *repo.Entry, err error) {
 	return
 }
 
-func (rc *RepoController) ListCharts(repoName string) (charts map[string]repo.ChartVersions, err error) {
+func (rc *RepoController) ListCharts(repoName, filter string) (charts map[string]repo.ChartVersions, err error) {
 	r, err := rc.findRepo(repoName)
 	if err != nil {
 		log.WithError(err).Errorf("unable to find repo %s", repoName)
@@ -78,12 +78,13 @@ func (rc *RepoController) ListCharts(repoName string) (charts map[string]repo.Ch
 		log.WithError(err).Error("Unable to parse index.yaml")
 	}
 	charts = index.Entries
+	filterCharts(charts, filter)
 	return
 }
 
 func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string) (chartDetail *ChartDetail, err error) {
 	// update charts if needed
-	charts, err := rc.ListCharts(repoName)
+	charts, err := rc.ListCharts(repoName, "")
 	if err != nil {
 		log.WithError(err).Errorf("unable to get list of charts for %s", repoName)
 		return
@@ -204,4 +205,38 @@ func findVersion(versions repo.ChartVersions, version string) (ver *repo.ChartVe
 		found = true
 	}
 	return
+}
+
+func filterCharts(charts map[string]repo.ChartVersions, filter string) {
+	if filter == "" {
+		return
+	}
+	for key, val := range charts {
+		// if key and filter match, skip
+		if key == filter {
+			continue
+		}
+
+		var keywordMatched bool
+		for _, versions := range val {
+			name := versions.Name
+			keywords := versions.Keywords
+			// if name matches, skip
+			if name == filter {
+				continue
+			}
+			for _, keyword := range keywords {
+				if keyword == filter {
+					// if keyword matches, skip
+					keywordMatched = true
+					break
+				}
+			}
+		}
+		// if keyword matches, skip (not using labels)
+		if keywordMatched {
+			continue
+		}
+		delete(charts, key)
+	}
 }
