@@ -61,16 +61,19 @@ func main() {
 			Name:   authUsernameFlag,
 			Usage:  "basic auth username",
 			EnvVar: "RUDDER_AUTH_USERNAME",
+			Value:  "admin",
 		},
 		cli.StringFlag{
 			Name:   authPasswordFlag,
 			Usage:  "basic auth password",
 			EnvVar: "RUDDER_AUTH_PASSWORD",
+			Value:  "admin",
 		},
 		cli.StringFlag{
 			Name:   helmRepoFileFlag,
 			Usage:  "helm repo file",
 			EnvVar: "RUDDER_HELM_REPO_FILE",
+			Value:  os.Getenv("HOME") + "/.helm/repository/repositories.yaml",
 		},
 		cli.StringFlag{
 			Name:   helmCacheDirFlag,
