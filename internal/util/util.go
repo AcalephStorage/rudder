@@ -34,6 +34,10 @@ func IsOutdated(timestamp time.Time, lifetime time.Duration) bool {
 	return elapsed >= lifetime
 }
 
+func isExpired(timestamp time.Time) bool {
+	return time.Now().After(timestamp)
+}
+
 func HttpGET(url string) (out []byte, err error) {
 	res, err := http.Get(url)
 	if err == nil {

@@ -25,15 +25,19 @@ import (
 const (
 	appName = "rudder"
 
-	addressFlag               = "address"
-	tillerAddressFlag         = "tiller-address"
-	authUsernameFlag          = "auth-username"
-	authPasswordFlag          = "auth-password"
-	helmRepoFileFlag          = "helm-repo-file"
-	helmCacheDirFlag          = "helm-cache-dir"
-	helmRepoCacheLifetimeFlag = "helm-repo-cache-lifetime"
-	swaggerUIPathFlag         = "swagger-ui-path"
-	debugFlag                 = "debug"
+	addressFlag                   = "address"
+	tillerAddressFlag             = "tiller-address"
+	helmRepoFileFlag              = "helm-repo-file"
+	helmCacheDirFlag              = "helm-cache-dir"
+	helmRepoCacheLifetimeFlag     = "helm-repo-cache-lifetime"
+	swaggerUIPathFlag             = "swagger-ui-path"
+	basicAuthUsernameFlag         = "basic-auth-username"
+	basicAuthPasswordFlag         = "basic-auth-password"
+	oidcIssuerURLFlag             = "oidc-issuer-url"
+	clientIDFlag                  = "client-id"
+	clientSecretFlag              = "client-secret"
+	clientSecretBase64EncodedFlag = "client-secret-base64-encoded"
+	debugFlag                     = "debug"
 )
 
 var (
@@ -56,18 +60,6 @@ func main() {
 			Usage:  "tiller address",
 			EnvVar: "RUDDER_TILLER_ADDRESS",
 			Value:  "localhost:44134",
-		},
-		cli.StringFlag{
-			Name:   authUsernameFlag,
-			Usage:  "basic auth username",
-			EnvVar: "RUDDER_AUTH_USERNAME",
-			Value:  "admin",
-		},
-		cli.StringFlag{
-			Name:   authPasswordFlag,
-			Usage:  "basic auth password",
-			EnvVar: "RUDDER_AUTH_PASSWORD",
-			Value:  "admin",
 		},
 		cli.StringFlag{
 			Name:   helmRepoFileFlag,
@@ -93,6 +85,36 @@ func main() {
 			EnvVar: "RUDDER_SWAGGER_UI_PATH",
 			Value:  "/opt/rudder/swagger",
 		},
+		cli.StringFlag{
+			Name:   basicAuthUsernameFlag,
+			Usage:  "basic auth username. will enable basic authentication if both username and password are provided",
+			EnvVar: "RUDDER_BASIC_AUTH_USERNAME",
+		},
+		cli.StringFlag{
+			Name:   basicAuthPasswordFlag,
+			Usage:  "basic auth password. will enable basic authentication if both username and password are provided",
+			EnvVar: "RUDDER_BASIC_AUTH_PASSWORD",
+		},
+		cli.StringFlag{
+			Name:   oidcIssuerURLFlag,
+			Usage:  "OIDC issuer url. will enable OIDC authentication",
+			EnvVar: "RUDDER_OIDC_ISSUER_URL",
+		},
+		cli.StringFlag{
+			Name:   "client-id",
+			Usage:  "OAuth Client ID. if specified, oidc will verify 'aud'",
+			EnvVar: "RUDDER_CLIENT_ID",
+		},
+		cli.StringFlag{
+			Name:   "client-secret",
+			Usage:  "OAuth Client Secret. if specified and JWT is signed with HMAC, this will be used for verification",
+			EnvVar: "RUDDER_CLIENT_SECRET",
+		},
+		cli.BoolFlag{
+			Name:   clientSecretBase64EncodedFlag,
+			Usage:  "enable this flag to specify that the client-secret is base64 encoded",
+			EnvVar: "RUDDER_CLIENT_BASE64_ENCODED",
+		},
 		cli.BoolFlag{
 			Name:   debugFlag,
 			Hidden: true,
@@ -116,12 +138,16 @@ func startRudder(ctx *cli.Context) error {
 	// flags
 	address := ctx.String(addressFlag)
 	tillerAddress := ctx.String(tillerAddressFlag)
-	authUsername := ctx.String(authUsernameFlag)
-	authPassword := ctx.String(authPasswordFlag)
 	helmRepoFile := ctx.String(helmRepoFileFlag)
 	helmCacheDir := ctx.String(helmCacheDirFlag)
 	helmRepoCacheLifetime := ctx.Int(helmRepoCacheLifetimeFlag)
 	swaggerUIPath := ctx.String(swaggerUIPathFlag)
+	basicAuthUsername := ctx.String(basicAuthUsernameFlag)
+	basicAuthPassword := ctx.String(basicAuthPasswordFlag)
+	oidcIssuerURL := ctx.String(oidcIssuerURLFlag)
+	clientID := ctx.String(clientIDFlag)
+	clientSecret := ctx.String(clientSecretFlag)
+	clientSecretBase64Encoded := ctx.Bool(clientSecretBase64EncodedFlag)
 	isDebug := ctx.Bool(debugFlag)
 
 	container := restful.NewContainer()
@@ -148,9 +174,32 @@ func startRudder(ctx *cli.Context) error {
 	container.Filter(container.OPTIONSFilter)
 	log.Info("OPTIONS filter added.")
 
+	// authList
+	authList := make([]filter.Auth, 0)
+	if len(basicAuthUsername) > 0 && len(basicAuthPassword) > 0 {
+		authList = append(authList, &filter.BasicAuth{
+			basicAuthUsername,
+			basicAuthPassword,
+		})
+	}
+	if len(oidcIssuerURL) > 0 || len(clientSecret) > 0 {
+		oidcAuth, err := filter.NewOIDCAuth(oidcIssuerURL, clientID, clientSecret, clientSecretBase64Encoded)
+		if err != nil {
+			log.WithError(err).Error("unable to connect to OIDC issuer")
+			return err
+		}
+		authList = append(authList, oidcAuth)
+	}
+
 	// auth filter
-	authFilter := filter.NewAuthFilter(authUsername, authPassword)
-	container.Filter(authFilter.BasicAuthentication)
+	authFilter := &filter.AuthFilter{
+		AuthList: authList,
+		Exceptions: []string{
+			"/apidocs.json",
+			"/swagger",
+		},
+	}
+	container.Filter(authFilter.Filter)
 	log.Info("Auth filter added")
 
 	// repo resource (TODO: refactor pls)
