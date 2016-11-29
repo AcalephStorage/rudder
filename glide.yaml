@@ -1,0 +1,29 @@
+package: github.com/AcalephStorage/rudder
+import:
+- package: github.com/emicklei/go-restful
+  version: ~1.2.0
+  subpackages:
+  - swagger
+  - log
+- package: github.com/Sirupsen/logrus
+  version: ~0.10.0
+- package: k8s.io/helm
+  version: 2.0.0
+  subpackages:
+  - pkg/chartutil
+  - pkg/helm
+  - pkg/version
+  - pkg/repo
+  - pkg/proto/hapi/services
+  - pkg/proto/hapi/release
+- package: github.com/urfave/cli
+  version: ~1.18.1
+- package: github.com/ghodss/yaml
+- package: google.golang.org/grpc
+  version: v1.0.1-GA
+- package: github.com/coreos/go-oidc
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: gopkg.in/square/go-jose.v2
+  version: ~2.0.1
