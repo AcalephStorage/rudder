@@ -1,8 +1,8 @@
-hash: 2962151ca3dd87884b18c29738cb6c47e8d4ba76ff733659822da2ba749977e1
-updated: 2016-11-28T20:08:14.238040205+08:00
+hash: 0a3e91626263c2b763e160b7d961bd8eb49367161181ae132d57eb7f145d954a
+updated: 2016-11-29T16:03:21.119288135+08:00
 imports:
 - name: github.com/coreos/go-oidc
-  version: d3e23e1446a65c7de3d36ed8b6dda1eb224c9194
+  version: 8472879a4fc0182e34ed1a1edf711625a9c9fab2
 - name: github.com/emicklei/go-restful
   version: 777bb3f19bcafe2575ffb2a3e46af92509ae9594
   subpackages:
@@ -83,7 +83,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 - name: k8s.io/helm
-  version: f8037c83c647b56d9ef42d0d5254e5fc563e3048
+  version: 51bdad42756dfaf3234f53ef3d3cb6bcd94144c2
   subpackages:
   - pkg/chartutil
   - pkg/helm
