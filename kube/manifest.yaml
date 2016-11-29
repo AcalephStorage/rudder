@@ -31,7 +31,7 @@ data:
 kind: ConfigMap
 metadata:
   name: ruddercfg
-  namespace: ceph
+  namespace: default
 
 ---
 apiVersion: extensions/v1beta1
