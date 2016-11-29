@@ -12,13 +12,16 @@ import (
 	"github.com/emicklei/go-restful"
 	"golang.org/x/net/context"
 	"gopkg.in/square/go-jose.v2"
+
+	"github.com/AcalephStorage/rudder/internal/util"
 )
 
+// OIDCAuth provides JWT verification
 type OIDCAuth struct {
-	OIDCIssuer          string
-	ClientID            string
-	ClientSecret        string
-	SecretBase64Encoded bool
+	issuerURL           string
+	clientID            string
+	clientSecret        string
+	secretBase64Encoded bool
 	verifier            *oidc.IDTokenVerifier
 }
 
@@ -31,31 +34,37 @@ type idToken struct {
 	Nonce    string   `json:"nonce"`
 }
 
-func NewOIDCAuth(oidcIssuer, clientID, clientSecret string, secretBase64Encoded bool) (*OIDCAuth, error) {
-
+// NewOIDCAuth returns a new OIDC authenticator. Token verification depends on the provided arguments.
+// If oidcIssuer is provided and contains auto-discovery, RSA256 signed tokens can be verified. Providing
+// clientSecret will also allow HS256 signed token verification.
+//
+// Other verifications are also done besides the signature. If oidcIssuer is provided, the iss claims will
+// be verified. Providing clientID will verify the aud claim. Token expiry will always be verified.
+func NewOIDCAuth(oidcIssuer, clientID, clientSecret string, secretBase64Encoded bool) *OIDCAuth {
 	var verifier *oidc.IDTokenVerifier
 	if len(oidcIssuer) > 0 {
 		provider, err := oidc.NewProvider(context.Background(), oidcIssuer)
 		if err != nil {
-			log.WithError(err).Error("Unable to connect to oidc issuer")
-			return nil, err
+			log.WithError(err).Warn("Unable to connect to oidc issuer: Will not be able to verify RSA signed tokens")
+		} else {
+			options := []oidc.VerificationOption{oidc.VerifyExpiry()}
+			if len(clientID) > 0 {
+				options = append(options, oidc.VerifyAudience(clientID))
+			}
+			verifier = provider.Verifier(options...)
 		}
-		options := []oidc.VerificationOption{oidc.VerifyExpiry()}
-		if len(clientID) > 0 {
-			options = append(options, oidc.VerifyAudience(clientID))
-		}
-		verifier = provider.Verifier(options...)
-	}
 
+	}
 	return &OIDCAuth{
-		OIDCIssuer:          oidcIssuer,
-		ClientID:            clientID,
-		ClientSecret:        clientSecret,
-		SecretBase64Encoded: secretBase64Encoded,
+		issuerURL:           oidcIssuer,
+		clientID:            clientID,
+		clientSecret:        clientSecret,
+		secretBase64Encoded: secretBase64Encoded,
 		verifier:            verifier,
-	}, nil
+	}
 }
 
+// Authorize returns true if the req contains a valid token
 func (oa *OIDCAuth) Authorize(req *restful.Request) (authorized bool) {
 	log.Debug("verifying oidc token")
 	authHeader := req.HeaderParameter("Authorization")
@@ -89,17 +98,19 @@ func (oa *OIDCAuth) verifyOthers(rawIDToken string) bool {
 	return true
 }
 
+// go-oidc doesn't provide convenience method for verifying HS256 but the library contains the means
+// to do it but it's quite manual. This function does that.
 func (oa *OIDCAuth) verifyHS256(rawIDToken string, jws *jose.JSONWebSignature) bool {
 	if len(jws.Signatures) != 1 || !strings.HasPrefix(jws.Signatures[0].Header.Algorithm, "HS256") {
-		// invalid or not HMAC
+		// invalid or not HMAC signed
 		return false
 	}
 	// verify signature
 	var secret []byte
-	if oa.SecretBase64Encoded {
-		secret, _ = base64.URLEncoding.DecodeString(oa.ClientSecret)
+	if oa.secretBase64Encoded {
+		secret, _ = base64.URLEncoding.DecodeString(oa.clientSecret)
 	} else {
-		secret = []byte(oa.ClientSecret)
+		secret = []byte(oa.clientSecret)
 	}
 	payload, err := jws.Verify(secret)
 	if err != nil {
@@ -112,15 +123,15 @@ func (oa *OIDCAuth) verifyHS256(rawIDToken string, jws *jose.JSONWebSignature) b
 		return false
 	}
 	// verify issuer
-	if len(oa.OIDCIssuer) > 0 && token.Issuer != oa.OIDCIssuer {
+	if oa.issuerURL != "" && token.Issuer != oa.issuerURL {
 		log.Debug("invalid token issuer")
 		return false
 	}
 	// verify audience
-	if len(oa.ClientID) > 0 {
+	if oa.clientID != "" {
 		var found bool
 		for _, aud := range token.Audience {
-			if oa.ClientID == aud {
+			if oa.clientID == aud {
 				found = true
 			}
 		}
@@ -130,7 +141,7 @@ func (oa *OIDCAuth) verifyHS256(rawIDToken string, jws *jose.JSONWebSignature) b
 		}
 	}
 	// verify Expiry
-	if time.Now().After(time.Time(token.Expiry)) {
+	if util.IsExpired(time.Time(token.Expiry)) {
 		log.Debug("token is expired")
 		return false
 	}

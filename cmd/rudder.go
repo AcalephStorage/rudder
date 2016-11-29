@@ -2,8 +2,10 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
@@ -18,8 +20,6 @@ import (
 	"github.com/AcalephStorage/rudder/internal/controller"
 	"github.com/AcalephStorage/rudder/internal/filter"
 	"github.com/AcalephStorage/rudder/internal/resource"
-	"io/ioutil"
-	"time"
 )
 
 const (
@@ -38,10 +38,16 @@ const (
 	clientSecretFlag              = "client-secret"
 	clientSecretBase64EncodedFlag = "client-secret-base64-encoded"
 	debugFlag                     = "debug"
+
+	swaggerAPIPath = "/apidocs.json"
+	swaggerPath    = "/swagger/"
 )
 
 var (
 	version = "dev"
+
+	corsAllowedMethods = []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"}
+	corsAllowedHeaders = []string{"Authorization", "Accept", "Content-Type"}
 )
 
 func main() {
@@ -73,11 +79,11 @@ func main() {
 			EnvVar: "RUDDER_HELM_CACHE_DIR",
 			Value:  "/opt/rudder/cache",
 		},
-		cli.IntFlag{
+		cli.DurationFlag{
 			Name:   helmRepoCacheLifetimeFlag,
-			Usage:  "cache lifetime before it gets updated (mins)",
+			Usage:  "cache lifetime. should be in duration format (eg. 10m). valid time units are 'ns', 'us' (or 'µs'), 'ms', 's', 'm', 'h'",
 			EnvVar: "RUDDER_HELM_REPO_CACHE_LIFETIME",
-			Value:  10,
+			Value:  10 * time.Minute,
 		},
 		cli.StringFlag{
 			Name:   swaggerUIPathFlag,
@@ -127,85 +133,108 @@ func main() {
 
 func startRudder(ctx *cli.Context) error {
 	// unified logging format
-	logFormat := &log.TextFormatter{FullTimestamp: true}
-	log.SetFormatter(logFormat)
-	restfulLogger := log.New()
-	restfulLogger.Formatter = logFormat
-	restfullog.SetLogger(restfulLogger)
-
+	isDebug := ctx.Bool(debugFlag)
+	initializeLogger(isDebug)
 	log.Info("Starting Rudder...")
 
-	// flags
-	address := ctx.String(addressFlag)
-	tillerAddress := ctx.String(tillerAddressFlag)
-	helmRepoFile := ctx.String(helmRepoFileFlag)
-	helmCacheDir := ctx.String(helmCacheDirFlag)
-	helmRepoCacheLifetime := ctx.Int(helmRepoCacheLifetimeFlag)
-	swaggerUIPath := ctx.String(swaggerUIPathFlag)
-	basicAuthUsername := ctx.String(basicAuthUsernameFlag)
-	basicAuthPassword := ctx.String(basicAuthPasswordFlag)
+	// main container
+	container := restful.NewContainer()
+
+	// add debug, cors, and options filter
+	createBasicFilters(container, isDebug)
+
+	// add auth filter
+	username := ctx.String(basicAuthUsernameFlag)
+	password := ctx.String(basicAuthPasswordFlag)
 	oidcIssuerURL := ctx.String(oidcIssuerURLFlag)
 	clientID := ctx.String(clientIDFlag)
 	clientSecret := ctx.String(clientSecretFlag)
-	clientSecretBase64Encoded := ctx.Bool(clientSecretBase64EncodedFlag)
-	isDebug := ctx.Bool(debugFlag)
+	secretIsBase64Encoded := ctx.Bool(clientSecretBase64EncodedFlag)
+	createAuthFilter(container, username, password, oidcIssuerURL, clientID, clientSecret, secretIsBase64Encoded)
 
-	container := restful.NewContainer()
+	// add `repo` resource
+	repoFile := ctx.String(helmRepoFileFlag)
+	cacheDir := ctx.String(helmCacheDirFlag)
+	cacheLifetime := ctx.Duration(helmRepoCacheLifetimeFlag)
+	repoController := createRepoController(repoFile, cacheDir, cacheLifetime)
+	registerRepoResource(container, repoController)
 
+	// add `release` resource
+	tillerAddress := ctx.String(tillerAddressFlag)
+	registerReleaseResource(container, repoController, tillerAddress)
+
+	// add swagger service
+	swaggerUIPath := ctx.String(swaggerUIPathFlag)
+	registerSwagger(container, swaggerUIPath)
+
+	// start server
+	address := ctx.String(addressFlag)
+	log.Infof("Rudder listening at: %v", address)
+	return http.ListenAndServe(address, container)
+}
+
+func initializeLogger(isDebug bool) {
+	// use full timestamp
+	logFormat := &log.TextFormatter{FullTimestamp: true}
+	log.SetFormatter(logFormat)
+	// use same format for restful logger
+	restfulLogger := log.New()
+	restfulLogger.Formatter = logFormat
+	restfullog.SetLogger(restfulLogger)
 	// debug mode
 	if isDebug {
 		log.SetLevel(log.DebugLevel)
 		log.Debug("DEBUG Mode enabled.")
+	}
+}
+
+func createBasicFilters(container *restful.Container, isDebug bool) {
+	// debug filter
+	if isDebug {
 		debugFilter := filter.NewDebugFilter()
 		container.Filter(debugFilter.Debug)
-		log.Debug("Debug filter added.")
+		log.Info("Debug filter added.")
 	}
-
 	// cors
 	cors := restful.CrossOriginResourceSharing{
-		AllowedMethods: []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
-		AllowedHeaders: []string{"Authorization", "Accept", "Content-Type"},
+		AllowedMethods: corsAllowedMethods,
+		AllowedHeaders: corsAllowedHeaders,
 		Container:      container,
 	}
 	container.Filter(cors.Filter)
 	log.Info("CORS filter added.")
-
 	// options
 	container.Filter(container.OPTIONSFilter)
 	log.Info("OPTIONS filter added.")
+}
 
-	// authList
-	authList := make([]filter.Auth, 0)
-	if len(basicAuthUsername) > 0 && len(basicAuthPassword) > 0 {
-		authList = append(authList, &filter.BasicAuth{
-			basicAuthUsername,
-			basicAuthPassword,
-		})
+func createAuthFilter(container *restful.Container, username, password, oidcIssuerURL, clientID, clientSecret string, isBase64Encoded bool) {
+	// supported auth
+	var supportedAuth []filter.Auth
+	// enable basic auth of username and password are defined
+	if username != "" && password != "" {
+		supportedAuth = append(supportedAuth, filter.NewBasicAuth(username, password))
 	}
-	if len(oidcIssuerURL) > 0 || len(clientSecret) > 0 {
-		oidcAuth, err := filter.NewOIDCAuth(oidcIssuerURL, clientID, clientSecret, clientSecretBase64Encoded)
-		if err != nil {
-			log.WithError(err).Error("unable to connect to OIDC issuer")
-			return err
-		}
-		authList = append(authList, oidcAuth)
+	// enable oidc auth if oidc issuer url or client secret is defined
+	if oidcIssuerURL != "" || clientSecret != "" {
+		oidcAuth := filter.NewOIDCAuth(oidcIssuerURL, clientID, clientSecret, isBase64Encoded)
+		supportedAuth = append(supportedAuth, oidcAuth)
+	}
+	// don't include swagger to exceptions
+	exceptions := []string{
+		"/apidocs.json",
+		"/swagger",
 	}
 
-	// auth filter
-	authFilter := &filter.AuthFilter{
-		AuthList: authList,
-		Exceptions: []string{
-			"/apidocs.json",
-			"/swagger",
-		},
-	}
+	authFilter := filter.NewAuthFilter(supportedAuth, exceptions)
 	container.Filter(authFilter.Filter)
 	log.Info("Auth filter added")
+}
 
-	// repo resource (TODO: refactor pls)
-	repoFileYAML, err := ioutil.ReadFile(helmRepoFile)
+func createRepoController(repoFileURL, cacheDir string, cacheLife time.Duration) *controller.RepoController {
+	repoFileYAML, err := ioutil.ReadFile(repoFileURL)
 	if err != nil {
-		log.Fatalf("unable to read repo file at %s", helmRepoFile)
+		log.Fatalf("unable to read repo file at %s", repoFileURL)
 	}
 	repoFileJSON, err := yaml.YAMLToJSON(repoFileYAML)
 	if err != nil {
@@ -215,35 +244,36 @@ func startRudder(ctx *cli.Context) error {
 	if err := json.Unmarshal(repoFileJSON, &repoFile); err != nil {
 		log.Fatal("unable to parse repoFile")
 	}
-	cacheDur := (time.Duration(helmRepoCacheLifetime) * time.Minute)
-	repoController := controller.NewRepoController(repoFile.Repositories, helmCacheDir, cacheDur)
+	repoController := controller.NewRepoController(repoFile.Repositories, cacheDir, cacheLife)
+	return repoController
+}
+
+func registerRepoResource(container *restful.Container, repoController *controller.RepoController) {
 	repoResource := resource.NewRepoResource(repoController)
 	repoResource.Register(container)
 	log.Info("repo resource registered.")
+}
 
-	// releaseController
+func registerReleaseResource(container *restful.Container, repoController *controller.RepoController, tillerAddress string) {
 	tillerClient := client.NewTillerClient(tillerAddress)
 	releaseController := controller.NewReleaseController(tillerClient, repoController)
-	// release resource
 	releaseResource := resource.NewReleaseResource(releaseController)
 	releaseResource.Register(container)
 	log.Info("release resource registered.")
+}
 
-	// enable swagger
+func registerSwagger(container *restful.Container, swaggerUIPath string) {
 	swaggerConfig := swagger.Config{
 		WebServices: container.RegisteredWebServices(),
-		ApiPath:     "/apidocs.json",
+		ApiPath:     swaggerAPIPath,
 		ApiVersion:  version,
 		Info: swagger.Info{
 			Title:       "Rudder",
 			Description: "RESTful proxy for the Tiller service",
 		},
-		SwaggerPath:     "/swagger/",
+		SwaggerPath:     swaggerPath,
 		SwaggerFilePath: swaggerUIPath,
 	}
 	swagger.RegisterSwaggerService(swaggerConfig, container)
 	log.Info("Swagger enabled.")
-
-	log.Infof("Rudder listening at: %v", address)
-	return http.ListenAndServe(address, container)
 }

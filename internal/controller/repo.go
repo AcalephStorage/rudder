@@ -16,12 +16,14 @@ import (
 	"github.com/AcalephStorage/rudder/internal/util"
 )
 
+// RepoController handles helm repository related operations
 type RepoController struct {
 	repos         []*repo.Entry
 	cacheDir      string
 	cacheLifetime time.Duration
 }
 
+// ChartDetail defines the details of a chart
 type ChartDetail struct {
 	Metadata  chart.Metadata         `json:"metadata"`
 	ValuesRaw string                 `json:"values_raw"`
@@ -31,6 +33,7 @@ type ChartDetail struct {
 	ChartFile string                 `json:"-"`
 }
 
+// NewRepoController creates a new repo controller.
 func NewRepoController(repos []*repo.Entry, cacheDir string, cacheLifetime time.Duration) *RepoController {
 
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
@@ -44,6 +47,7 @@ func NewRepoController(repos []*repo.Entry, cacheDir string, cacheLifetime time.
 	}
 }
 
+// ListRepos returns a list of repositories
 func (rc *RepoController) ListRepos() []*repo.Entry {
 	return rc.repos
 }
@@ -59,6 +63,7 @@ func (rc *RepoController) findRepo(repoName string) (r *repo.Entry, err error) {
 	return
 }
 
+// ListCharts returns the charts contained in the provided repo
 func (rc *RepoController) ListCharts(repoName, filter string) (charts map[string]repo.ChartVersions, err error) {
 	r, err := rc.findRepo(repoName)
 	if err != nil {
@@ -82,6 +87,7 @@ func (rc *RepoController) ListCharts(repoName, filter string) (charts map[string
 	return
 }
 
+// ChartDetail returns the details of the provided chart
 func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string) (chartDetail *ChartDetail, err error) {
 	// update charts if needed
 	charts, err := rc.ListCharts(repoName, "")
@@ -148,6 +154,8 @@ func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string)
 	return
 }
 
+// readFromCacheOrURL handles reading of the charts. Charts are stored locally for faster access
+// but expires at a set time.
 func (rc *RepoController) readFromCacheOrURL(url string) ([]byte, error) {
 	log.Debugf("Fetching resource from cache or %s...", url)
 	mustReload := false
@@ -170,7 +178,7 @@ func (rc *RepoController) readFromCacheOrURL(url string) ([]byte, error) {
 	if mustReload {
 		log.Debug("cache not found or outdated. getting from URL")
 		// get from url
-		out, err := util.HttpGET(url)
+		out, err := util.HTTPGet(url)
 		if err != nil {
 			// unable to download
 			log.Debugf("unable to download from %s", url)

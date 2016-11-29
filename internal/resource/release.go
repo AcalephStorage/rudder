@@ -41,6 +41,7 @@ var (
 	errFailToGetRelease        = restful.NewError(http.StatusInternalServerError, "unable to get release content and status")
 )
 
+// InstallReleaseRequest is the request body needed for installing a new release
 type InstallReleaseRequest struct {
 	Name      string                 `json:"name"`
 	Namespace string                 `json:"namespace"`
@@ -50,14 +51,17 @@ type InstallReleaseRequest struct {
 	Values    map[string]interface{} `json:"values"`
 }
 
+// ReleaseResource represents helm releases
 type ReleaseResource struct {
 	controller *controller.ReleaseController
 }
 
+// NewReleaseResource creates a new ReleaseResource instance
 func NewReleaseResource(controller *controller.ReleaseController) *ReleaseResource {
 	return &ReleaseResource{controller: controller}
 }
 
+// Register registers this to the provided container
 func (rr *ReleaseResource) Register(container *restful.Container) {
 
 	ws := new(restful.WebService)
@@ -66,6 +70,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON)
 
+	// GET /api/v1/releases
 	ws.Route(ws.GET("").To(rr.listReleases).
 		Doc("list releases").
 		Operation("listReleases").
@@ -76,20 +81,22 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Param(ws.QueryParameter("sort-order", "sort order: asc, desc")).
 		Param(ws.QueryParameter("status-code", "comma-separated status codes: unknown, deployed, deleted, superseded, failed")).
 		Writes(tiller.ListReleasesResponse{}))
-	log.Debug("listReleases registered.")
 
+	// POST /api/v1/releases
 	ws.Route(ws.POST("").To(rr.installRelease).
 		Doc("install release. defaults: namespace=default, version=latest.").
 		Operation("installRelease").
 		Reads(InstallReleaseRequest{}).
 		Writes(tiller.InstallReleaseResponse{}))
 
+	// DELETE /api/v1/releases/{release}
 	ws.Route(ws.DELETE("/{release}").To(rr.uninstallRelease).
 		Doc("uninstall release").
 		Operation("uninstallRelease").
 		Param(ws.PathParameter("release", "the release name to be deleted")).
 		Param(ws.QueryParameter("purge", "purge the release")))
 
+	// GET /api/v1/releases/{release}/{version}
 	ws.Route(ws.GET("/{release}/{version}").To(rr.getRelease).
 		Doc("get release").
 		Operation("getRelease").
@@ -101,7 +108,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 
 }
 
-// GET  api/v1/releases
+// listReleases returns a list of installed releases
 func (rr *ReleaseResource) listReleases(req *restful.Request, res *restful.Response) {
 	log.Info("Getting list of releases...")
 
@@ -136,48 +143,49 @@ func (rr *ReleaseResource) listReleases(req *restful.Request, res *restful.Respo
 
 	response, err := rr.controller.ListReleases(request)
 	if err != nil {
-		util.ErrorResponse(res, errFailToListReleases)
+		errorResponse(res, errFailToListReleases)
 		return
 	}
 	if err := res.WriteEntity(response); err != nil {
-		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+		errorResponse(res, errFailToWriteResponse)
 	}
 }
 
-// POST api/v1/releases {request body passed}
+// installRelease installs the provided release and version to the given namespace
 func (rr *ReleaseResource) installRelease(req *restful.Request, res *restful.Response) {
 	in := InstallReleaseRequest{
 		Namespace: "default",
 		Version:   "latest",
 	}
 	if err := req.ReadEntity(&in); err != nil {
-		util.ErrorResponse(res, util.ErrFailToReadResponse)
+		errorResponse(res, errFailToReadResponse)
 		return
 	}
 	out, err := rr.controller.InstallRelease(in.Name, in.Namespace, in.Repo, in.Chart, in.Version, in.Values)
 	if err != nil {
-		util.ErrorResponse(res, errFailToInstallRelease)
+		errorResponse(res, errFailToInstallRelease)
 		return
 	}
 	if err := res.WriteEntity(out); err != nil {
-		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+		errorResponse(res, errFailToWriteResponse)
 	}
 }
 
-// DELETE api/v1/releases/:name {create request body}
+// uninstallRelease removes the release from the list of releases
 func (rr *ReleaseResource) uninstallRelease(req *restful.Request, res *restful.Response) {
 	releaseName := req.PathParameter("release")
 	_, purge := req.Request.URL.Query()["purge"]
 	out, err := rr.controller.UninstallRelease(releaseName, purge)
 	if err != nil {
-		util.ErrorResponse(res, errFailtToUninstallRelease)
+		errorResponse(res, errFailtToUninstallRelease)
 		return
 	}
 	if err := res.WriteEntity(out); err != nil {
-		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+		errorResponse(res, errFailToWriteResponse)
 	}
 }
 
+// getRelease returns the details of the provided release
 func (rr *ReleaseResource) getRelease(req *restful.Request, res *restful.Response) {
 	name := req.PathParameter("release")
 	versionRaw := req.PathParameter("version")
@@ -185,42 +193,42 @@ func (rr *ReleaseResource) getRelease(req *restful.Request, res *restful.Respons
 
 	out, err := rr.controller.GetRelease(name, version)
 	if err != nil {
-		util.ErrorResponse(res, errFailToGetRelease)
+		errorResponse(res, errFailToGetRelease)
 		return
 	}
 
 	if err := res.WriteEntity(out); err != nil {
-		util.ErrorResponse(res, util.ErrFailToWriteResponse)
+		errorResponse(res, errFailToWriteResponse)
 	}
 
 }
 
 // GET api/v1/releases/:name/:version/:status {create request body}
 func (rr *ReleaseResource) releaseStatus(req *restful.Request, res *restful.Response) {
-
+	// TODO
 }
 
 // PUT api/v1/releases {request body passed}
 func (rr *ReleaseResource) updateRelease(req *restful.Request, res *restful.Response) {
-
+	// TODO
 }
 
 // POST ??? I DUNNOT KNOW
 func (rr *ReleaseResource) rollbackRelease(req *restful.Request, res *restful.Response) {
-
+	// TODO
 }
 
 // GET /api/v1/releases/:name/:version {create request body}
 func (rr *ReleaseResource) releaseContent(req *restful.Request, res *restful.Response) {
-
+	// TODO
 }
 
 // ???? I DUNNOT KNOW
 func (rr *ReleaseResource) releaseHistory(req *restful.Request, res *restful.Response) {
-
+	// TODO
 }
 
 // GET api/v1/version (do we need this?)
 func (rr *ReleaseResource) getVersion(req *restful.Request, res *restful.Response) {
-
+	// TODO
 }

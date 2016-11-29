@@ -11,16 +11,19 @@ import (
 	"github.com/AcalephStorage/rudder/internal/client"
 )
 
+// GetReleaseResponse contains the response for requesting Release information
 type GetReleaseResponse struct {
 	Content *tiller.GetReleaseContentResponse `json:"content"`
 	Status  *tiller.GetReleaseStatusResponse  `json:"status"`
 }
 
+// ReleaseController handles helm release related operations
 type ReleaseController struct {
 	tillerClient   *client.TillerClient
 	repoController *RepoController
 }
 
+// NewReleaseController creates a new Release controller
 func NewReleaseController(tillerClient *client.TillerClient, repoController *RepoController) *ReleaseController {
 	return &ReleaseController{
 		tillerClient:   tillerClient,
@@ -28,6 +31,7 @@ func NewReleaseController(tillerClient *client.TillerClient, repoController *Rep
 	}
 }
 
+// ListReleases returns a list of releases
 func (rc *ReleaseController) ListReleases(req *tiller.ListReleasesRequest) (*tiller.ListReleasesResponse, error) {
 	res, err := rc.tillerClient.ListReleases(req)
 	if err != nil {
@@ -37,6 +41,7 @@ func (rc *ReleaseController) ListReleases(req *tiller.ListReleasesRequest) (*til
 	return res, nil
 }
 
+// InstallRelease installs a new release of the provided chart
 func (rc *ReleaseController) InstallRelease(name, namespace, repo, chart, version string, values map[string]interface{}) (*tiller.InstallReleaseResponse, error) {
 	chartDetails, err := rc.repoController.ChartDetails(repo, chart, version)
 	if err != nil {
@@ -77,6 +82,7 @@ func (rc *ReleaseController) InstallRelease(name, namespace, repo, chart, versio
 	return res, nil
 }
 
+// UninstallRelease uninstall a release
 func (rc *ReleaseController) UninstallRelease(releaseName string, purge bool) (*tiller.UninstallReleaseResponse, error) {
 	req := &tiller.UninstallReleaseRequest{
 		Name:  releaseName,
@@ -91,6 +97,7 @@ func (rc *ReleaseController) UninstallRelease(releaseName string, purge bool) (*
 	return res, nil
 }
 
+// GetRelease returns the release details
 func (rc *ReleaseController) GetRelease(name string, version int32) (*GetReleaseResponse, error) {
 	req := &tiller.GetReleaseContentRequest{
 		Name:    name,

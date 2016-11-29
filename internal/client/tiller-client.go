@@ -9,11 +9,13 @@ import (
 	"k8s.io/helm/pkg/version"
 )
 
+// TillerClient is a wrapper for accessing Tiller's gRPC
 type TillerClient struct {
 	address string
 	context context.Context
 }
 
+// NewTillerClient creates a new TillerClient instance
 func NewTillerClient(address string) *TillerClient {
 	md := metadata.Pairs("x-helm-api-client", version.Version)
 	ctx := metadata.NewContext(context.TODO(), md)
@@ -32,6 +34,7 @@ func (tc *TillerClient) execute(request func(tiller.ReleaseServiceClient)) error
 	return nil
 }
 
+// ListReleases returns a list of release from tiller
 func (tc *TillerClient) ListReleases(req *tiller.ListReleasesRequest) (res *tiller.ListReleasesResponse, err error) {
 	log.Info(req)
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
@@ -45,6 +48,7 @@ func (tc *TillerClient) ListReleases(req *tiller.ListReleasesRequest) (res *till
 	return
 }
 
+// InstallRelease installs a new release
 func (tc *TillerClient) InstallRelease(req *tiller.InstallReleaseRequest) (res *tiller.InstallReleaseResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.InstallRelease(tc.context, req)
@@ -55,6 +59,7 @@ func (tc *TillerClient) InstallRelease(req *tiller.InstallReleaseRequest) (res *
 	return
 }
 
+// UninstallRelease uninstalls a release
 func (tc *TillerClient) UninstallRelease(req *tiller.UninstallReleaseRequest) (res *tiller.UninstallReleaseResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.UninstallRelease(tc.context, req)
@@ -65,6 +70,7 @@ func (tc *TillerClient) UninstallRelease(req *tiller.UninstallReleaseRequest) (r
 	return
 }
 
+// GetReleaseContent returns the contents of a release
 func (tc *TillerClient) GetReleaseContent(req *tiller.GetReleaseContentRequest) (res *tiller.GetReleaseContentResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.GetReleaseContent(tc.context, req)
@@ -75,6 +81,7 @@ func (tc *TillerClient) GetReleaseContent(req *tiller.GetReleaseContentRequest) 
 	return
 }
 
+// GetReleaseStatus returns the status of a release
 func (tc *TillerClient) GetReleaseStatus(req *tiller.GetReleaseStatusRequest) (res *tiller.GetReleaseStatusResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.GetReleaseStatus(tc.context, req)
