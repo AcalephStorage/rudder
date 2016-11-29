@@ -1,0 +1,93 @@
+---
+# exposing tiller as a service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: helm
+    name: tiller
+  name: tiller
+  namespace: kube-system
+spec:
+  ports:
+  - name: api
+    port: 44134
+    protocol: TCP
+    targetPort: 44134
+  selector:
+    app: helm
+    name: tiller
+
+---
+# add repo file as config map
+apiVersion: v1
+data:
+  repo: |
+    apiVersion: v1
+    repositories:
+    - cache: stable-index.yaml
+      name: stable
+      url: http://storage.googleapis.com/kubernetes-charts
+kind: ConfigMap
+metadata:
+  name: ruddercfg
+  namespace: ceph
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "4"
+  labels:
+    app: rudder
+    type: api
+  name: rudder
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rudder
+      type: api
+  template:
+    metadata:
+      labels:
+        app: rudder
+        type: api
+      name: rudder
+      namespace: default
+    spec:
+      containers:
+        env:
+        - name: RUDDER_TILLER_ADDRESS
+          value: tiller.kube-system:44134
+        # - name: RUDDER_AUTH_USERNAME
+        #   valueFrom:
+        #     secretKeyRef:
+        #       key: username
+        #       name: rudder-creds
+        # - name: RUDDER_AUTH_PASSWORD
+        #   valueFrom:
+        #     secretKeyRef:
+        #       key: password
+        #       name: rudder-creds
+        - name: RUDDER_HELM_REPO_FILE
+          value: /opt/rudder/helm/repo.yaml
+        image: quay.io/acaleph/rudder:v0.1.0
+        name: rudder
+        ports:
+        - containerPort: 5000
+          name: api
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /opt/rudder/helm
+          name: repo
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: repo
+            path: repo.yaml
+          name: ruddercfg
+        name: repo
