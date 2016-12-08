@@ -8,7 +8,7 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ~0.10.0
 - package: k8s.io/helm
-  version: 2.0.0
+  version: 2.0.1
   subpackages:
   - pkg/chartutil
   - pkg/helm
@@ -27,3 +27,4 @@ import:
   - context
 - package: gopkg.in/square/go-jose.v2
   version: ~2.0.1
+- package: github.com/AcalephStorage/go-auth

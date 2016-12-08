@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/AcalephStorage/go-auth"
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	restfullog "github.com/emicklei/go-restful/log"
@@ -210,14 +211,14 @@ func createBasicFilters(container *restful.Container, isDebug bool) {
 
 func createAuthFilter(container *restful.Container, username, password, oidcIssuerURL, clientID, clientSecret string, isBase64Encoded bool) {
 	// supported auth
-	var supportedAuth []filter.Auth
+	var supportedAuth []auth.Auth
 	// enable basic auth of username and password are defined
 	if username != "" && password != "" {
-		supportedAuth = append(supportedAuth, filter.NewBasicAuth(username, password))
+		supportedAuth = append(supportedAuth, auth.NewBasicAuth(username, password))
 	}
 	// enable oidc auth if oidc issuer url or client secret is defined
 	if oidcIssuerURL != "" || clientSecret != "" {
-		oidcAuth := filter.NewOIDCAuth(oidcIssuerURL, clientID, clientSecret, isBase64Encoded)
+		oidcAuth := auth.NewOIDCAuth(oidcIssuerURL, clientID, clientSecret, isBase64Encoded)
 		supportedAuth = append(supportedAuth, oidcAuth)
 	}
 	// don't include swagger to exceptions
@@ -226,7 +227,7 @@ func createAuthFilter(container *restful.Container, username, password, oidcIssu
 		"/swagger",
 	}
 
-	authFilter := filter.NewAuthFilter(supportedAuth, exceptions)
+	authFilter := auth.NewAuthFilter(supportedAuth, exceptions)
 	container.Filter(authFilter.Filter)
 	log.Info("Auth filter added")
 }

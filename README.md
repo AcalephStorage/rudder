@@ -1,39 +1,45 @@
-rudder
+Rudder
 ------
 
 RESTful API for Helm Repositories and the Tiller service.
 
-## Requirements
+Requirements
+------------
 
- - Tiller v2.0.0
+-	Tiller v2.0.0
 
-## Installation
+Installation
+------------
 
 ### Binary
 
 Binaries can be downloaded [here](https://github.com/AcalephStorage/rudder/releases).
 
-### Docker
+Running
+-------
 
-Docker images are also available:
-
-```
-$ docker pull quay.io/acaleph/rudder
-```
-
-## Running
+Launch in Kubernetes:
 
 ```
-$ rudder {{flags}}
+$ kubectl create -f kube/manifest.yaml
 ```
 
-or
+This will create a Service for Tiller in the `kube-system` namespace, along with the Deployment and Configmap to run Rudder (in the `default` namespace). Customize as needed with Services, Secrets, etc (until the Rudder helm chart is ready)
+
+Alternatively:
 
 ```
 $ docker run quay.io/acaleph/rudder
 ```
 
-## Configuration
+or
+
+```
+$ rudder {{flags}}
+```
+
+Configuration
+-------------
 
 Configuration can be provided via cli flags or through environment variables:
 
@@ -53,7 +59,8 @@ Configuration can be provided via cli flags or through environment variables:
 | Client Secret Encoded | --client-secret-base64-encoded | RUDDER_CLIENT_BASE64_ENCODED    |                                      |
 | Debug Mode            | --debug                        |                                 |                                      |
 
-## API
+API
+---
 
 API docs is provided via swagger. This is available at: `http://{rudder-url}/swagger`.
 
@@ -61,7 +68,8 @@ Using the docker image already has this enabled by default. When using the binar
 
 Currently there are read-only Helm Repository endpoints for fetching charts from repositories and Basic Release endpoints (tiller), `install` and `uninstall`. The rest is still WIP.
 
-## Notes
+Notes
+-----
 
 ### Helm Repositories
 
@@ -83,9 +91,10 @@ Providing `--basic-auth-username` and `--basic-auth-password` will enable Basic 
 
 Providing `--oidc-issuer-url` or `--client-secret` will enable OIDC.
 
-## TODO
+TODO
+----
 
 This is still WIP. Some immediate TODOs are:
 
- - [ ] implement a repo manager
- - [ ] implement missing tiller functions
+-	[ ] implement a repo manager
+-	[ ] implement missing tiller functions
