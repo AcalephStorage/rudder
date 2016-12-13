@@ -1,6 +1,8 @@
 FROM alpine
 MAINTAINER admin@acale.ph
 
+RUN apk add --update ca-certificates
+
 ADD build/bin/rudder /usr/local/bin/rudder
 ADD third-party/swagger /opt/rudder/swagger
 
