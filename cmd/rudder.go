@@ -39,6 +39,7 @@ const (
 	clientSecretFlag              = "client-secret"
 	clientSecretBase64EncodedFlag = "client-secret-base64-encoded"
 	debugFlag                     = "debug"
+	insecure                      = "insecure"
 
 	swaggerAPIPath = "/apidocs.json"
 	swaggerPath    = "/swagger/"
@@ -126,6 +127,11 @@ func main() {
 			Name:   debugFlag,
 			Hidden: true,
 		},
+		cli.BoolFlag{
+			Name:   insecure,
+			Usage:  "enable insecure interface",
+			EnvVar: "RUDDER_INSECURE",
+		},
 	}
 
 	app.Action = startRudder
@@ -145,13 +151,15 @@ func startRudder(ctx *cli.Context) error {
 	createBasicFilters(container, isDebug)
 
 	// add auth filter
-	username := ctx.String(basicAuthUsernameFlag)
-	password := ctx.String(basicAuthPasswordFlag)
-	oidcIssuerURL := ctx.String(oidcIssuerURLFlag)
-	clientID := ctx.String(clientIDFlag)
-	clientSecret := ctx.String(clientSecretFlag)
-	secretIsBase64Encoded := ctx.Bool(clientSecretBase64EncodedFlag)
-	createAuthFilter(container, username, password, oidcIssuerURL, clientID, clientSecret, secretIsBase64Encoded)
+	if !ctx.Bool(insecure) {
+		username := ctx.String(basicAuthUsernameFlag)
+		password := ctx.String(basicAuthPasswordFlag)
+		oidcIssuerURL := ctx.String(oidcIssuerURLFlag)
+		clientID := ctx.String(clientIDFlag)
+		clientSecret := ctx.String(clientSecretFlag)
+		secretIsBase64Encoded := ctx.Bool(clientSecretBase64EncodedFlag)
+		createAuthFilter(container, username, password, oidcIssuerURL, clientID, clientSecret, secretIsBase64Encoded)
+	}
 
 	// add `repo` resource
 	repoFile := ctx.String(helmRepoFileFlag)
