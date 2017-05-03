@@ -59,12 +59,12 @@ spec:
         env:
         - name: RUDDER_TILLER_ADDRESS
           value: tiller.kube-system:44134
-        # - name: RUDDER_AUTH_USERNAME
+        # - name: RUDDER_BASIC_AUTH_USERNAME
         #   valueFrom:
         #     secretKeyRef:
         #       key: username
         #       name: rudder-creds
-        # - name: RUDDER_AUTH_PASSWORD
+        # - name: RUDDER_BASIC_AUTH_PASSWORD
         #   valueFrom:
         #     secretKeyRef:
         #       key: password
