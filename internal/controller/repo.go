@@ -124,8 +124,8 @@ func (rc *RepoController) ChartDetails(repoName, chartName, chartVersion string)
 
 	var v map[string]interface{}
 	valuesYAML := fileMap[chartName+"/values.yaml"]
-	vrxp := regexp.MustCompile("# ")
-	valuesYAML = vrxp.ReplaceAll(valuesYAML, []byte(""))
+	// vrxp := regexp.MustCompile("# ")
+	// valuesYAML = vrxp.ReplaceAll(valuesYAML, []byte(""))
 	util.YAMLtoJSON(valuesYAML, &v)
 	if err != nil {
 		log.WithError(err).Errorf("Unable to unmarshal values")
