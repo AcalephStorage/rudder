@@ -56,30 +56,32 @@ spec:
       name: rudder
     spec:
       containers:
-        env:
-        - name: RUDDER_TILLER_ADDRESS
-          value: tiller.kube-system:44134
-        # - name: RUDDER_BASIC_AUTH_USERNAME
-        #   valueFrom:
-        #     secretKeyRef:
-        #       key: username
-        #       name: rudder-creds
-        # - name: RUDDER_BASIC_AUTH_PASSWORD
-        #   valueFrom:
-        #     secretKeyRef:
-        #       key: password
-        #       name: rudder-creds
-        - name: RUDDER_HELM_REPO_FILE
-          value: /opt/rudder/helm/repo.yaml
-        image: quay.io/acaleph/rudder:v0.1.0
-        name: rudder
-        ports:
-        - containerPort: 5000
-          name: api
-          protocol: TCP
-        volumeMounts:
-        - mountPath: /opt/rudder/helm
-          name: repo
+        - name: rudder
+          image: quay.io/acaleph/rudder:v0.1.3
+          env:
+          - name: RUDDER_TILLER_ADDRESS
+            value: tiller.kube-system:44134
+          # - name: RUDDER_BASIC_AUTH_USERNAME
+          #   valueFrom:
+          #     secretKeyRef:
+          #       key: username
+          #       name: rudder-creds
+          # - name: RUDDER_BASIC_AUTH_PASSWORD
+          #   valueFrom:
+          #     secretKeyRef:
+          #       key: password
+          #       name: rudder-creds
+          - name: RUDDER_HELM_REPO_FILE
+            value: /opt/rudder/helm/repo.yaml
+
+
+          ports:
+          - containerPort: 5000
+            name: api
+            protocol: TCP
+          volumeMounts:
+          - mountPath: /opt/rudder/helm
+            name: repo
       volumes:
       - configMap:
           defaultMode: 420
