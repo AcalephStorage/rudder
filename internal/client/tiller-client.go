@@ -59,7 +59,7 @@ func (tc *TillerClient) InstallRelease(req *tiller.InstallReleaseRequest) (res *
 	return
 }
 
-// InstallRelease installs a new release
+// UpdateRelease updates a release
 func (tc *TillerClient) UpdateRelease(req *tiller.UpdateReleaseRequest) (res *tiller.UpdateReleaseResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
 		res, err = rsc.UpdateRelease(tc.context, req)

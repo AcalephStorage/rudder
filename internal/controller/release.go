@@ -12,12 +12,6 @@ import (
 	"github.com/AcalephStorage/rudder/internal/client"
 )
 
-// GetReleaseResponse contains the response for requesting Release information
-type GetReleaseResponse struct {
-	Content *tiller.GetReleaseContentResponse `json:"content"`
-	Status  *tiller.GetReleaseStatusResponse  `json:"status"`
-}
-
 // ReleaseController handles helm release related operations
 type ReleaseController struct {
 	tillerClient   *client.TillerClient
@@ -139,7 +133,7 @@ func (rc *ReleaseController) UninstallRelease(releaseName string, purge bool) (*
 }
 
 // GetRelease returns the release details
-func (rc *ReleaseController) GetRelease(name string, version int32) (*GetReleaseResponse, error) {
+func (rc *ReleaseController) GetRelease(name string, version int32) (*tiller.GetReleaseContentResponse, error) {
 	req := &tiller.GetReleaseContentRequest{
 		Name:    name,
 		Version: version,
@@ -149,20 +143,7 @@ func (rc *ReleaseController) GetRelease(name string, version int32) (*GetRelease
 		log.WithError(err).Error("unable to get release content")
 		return nil, err
 	}
-
-	req2 := &tiller.GetReleaseStatusRequest{
-		Name:    name,
-		Version: version,
-	}
-	status, err := rc.tillerClient.GetReleaseStatus(req2)
-	if err != nil {
-		log.WithError(err).Error("unable to get release status")
-		return nil, err
-	}
-	return &GetReleaseResponse{
-		Content: content,
-		Status:  status,
-	}, nil
+	return content, nil
 }
 
 // GetReleaseStatus returns the release status

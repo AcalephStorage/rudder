@@ -37,9 +37,9 @@ var (
 var (
 	errFailToListReleases      = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
 	errFailToInstallRelease    = restful.NewError(http.StatusInternalServerError, "unable to install releases")
-	errFailToUpdateRelease     = restful.NewError(http.StatusInternalServerError, "unable to udpate releases")
+	errFailToUpdateRelease     = restful.NewError(http.StatusInternalServerError, "unable to update releases")
 	errFailtToUninstallRelease = restful.NewError(http.StatusInternalServerError, "unable to uninstall releases")
-	errFailToGetRelease        = restful.NewError(http.StatusInternalServerError, "unable to get release content and status")
+	errFailToGetRelease        = restful.NewError(http.StatusInternalServerError, "unable to get release content")
 	errFailToGetReleaseStatus  = restful.NewError(http.StatusInternalServerError, "unable to get release status")
 )
 
@@ -120,7 +120,7 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Operation("getRelease").
 		Param(ws.PathParameter("release", "the release name")).
 		Param(ws.PathParameter("version", "the release version")).
-		Writes(controller.GetReleaseResponse{}))
+		Writes(tiller.GetReleaseContentResponse{}))
 
 	// GET /api/v1/releases/{release}/{version}
 	ws.Route(ws.GET("/{release}/{version}/status").To(rr.getReleaseStatus).
