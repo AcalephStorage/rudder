@@ -37,8 +37,10 @@ var (
 var (
 	errFailToListReleases      = restful.NewError(http.StatusBadRequest, "unable to get list of releases")
 	errFailToInstallRelease    = restful.NewError(http.StatusInternalServerError, "unable to install releases")
+	errFailToUpdateRelease     = restful.NewError(http.StatusInternalServerError, "unable to update releases")
 	errFailtToUninstallRelease = restful.NewError(http.StatusInternalServerError, "unable to uninstall releases")
-	errFailToGetRelease        = restful.NewError(http.StatusInternalServerError, "unable to get release content and status")
+	errFailToGetRelease        = restful.NewError(http.StatusInternalServerError, "unable to get release content")
+	errFailToGetReleaseStatus  = restful.NewError(http.StatusInternalServerError, "unable to get release status")
 )
 
 // InstallReleaseRequest is the request body needed for installing a new release
@@ -49,6 +51,15 @@ type InstallReleaseRequest struct {
 	Chart     string                 `json:"chart"`
 	Version   string                 `json:"version"`
 	Values    map[string]interface{} `json:"values"`
+}
+
+// UpdateReleaseRequest is the request body needed for updating an existing release
+type UpdateReleaseRequest struct {
+	Name    string                 `json:"name"`
+	Repo    string                 `json:"repo"`
+	Chart   string                 `json:"chart"`
+	Version string                 `json:"version"`
+	Values  map[string]interface{} `json:"values"`
 }
 
 // ReleaseResource represents helm releases
@@ -89,6 +100,13 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Reads(InstallReleaseRequest{}).
 		Writes(tiller.InstallReleaseResponse{}))
 
+	// PUT /api/v1/releases
+	ws.Route(ws.PUT("").To(rr.updateRelease).
+		Doc("update release. defaults: version=latest.").
+		Operation("udpateRelease").
+		Reads(InstallReleaseRequest{}).
+		Writes(tiller.UpdateReleaseResponse{}))
+
 	// DELETE /api/v1/releases/{release}
 	ws.Route(ws.DELETE("/{release}").To(rr.uninstallRelease).
 		Doc("uninstall release").
@@ -102,7 +120,15 @@ func (rr *ReleaseResource) Register(container *restful.Container) {
 		Operation("getRelease").
 		Param(ws.PathParameter("release", "the release name")).
 		Param(ws.PathParameter("version", "the release version")).
-		Writes(controller.GetReleaseResponse{}))
+		Writes(tiller.GetReleaseContentResponse{}))
+
+	// GET /api/v1/releases/{release}/{version}
+	ws.Route(ws.GET("/{release}/{version}/status").To(rr.getReleaseStatus).
+		Doc("get release status").
+		Operation("getReleaseStatus").
+		Param(ws.PathParameter("release", "the release name")).
+		Param(ws.PathParameter("version", "the release version")).
+		Writes(tiller.GetReleaseStatusResponse{}))
 
 	container.Add(ws)
 
@@ -171,6 +197,25 @@ func (rr *ReleaseResource) installRelease(req *restful.Request, res *restful.Res
 	}
 }
 
+// updateRelease updates the release with the provided chart
+func (rr *ReleaseResource) updateRelease(req *restful.Request, res *restful.Response) {
+	in := UpdateReleaseRequest{
+		Version: "latest",
+	}
+	if err := req.ReadEntity(&in); err != nil {
+		errorResponse(res, errFailToReadResponse)
+		return
+	}
+	out, err := rr.controller.UpdateRelease(in.Name, in.Repo, in.Chart, in.Version, in.Values)
+	if err != nil {
+		errorResponse(res, errFailToUpdateRelease)
+		return
+	}
+	if err := res.WriteEntity(out); err != nil {
+		errorResponse(res, errFailToWriteResponse)
+	}
+}
+
 // uninstallRelease removes the release from the list of releases
 func (rr *ReleaseResource) uninstallRelease(req *restful.Request, res *restful.Response) {
 	releaseName := req.PathParameter("release")
@@ -200,17 +245,23 @@ func (rr *ReleaseResource) getRelease(req *restful.Request, res *restful.Respons
 	if err := res.WriteEntity(out); err != nil {
 		errorResponse(res, errFailToWriteResponse)
 	}
-
 }
 
-// GET api/v1/releases/:name/:version/:status {create request body}
-func (rr *ReleaseResource) releaseStatus(req *restful.Request, res *restful.Response) {
-	// TODO
-}
+// getReleaseStatus returns the status of the provided release
+func (rr *ReleaseResource) getReleaseStatus(req *restful.Request, res *restful.Response) {
+	name := req.PathParameter("release")
+	versionRaw := req.PathParameter("version")
+	version := util.ToInt32(versionRaw)
 
-// PUT api/v1/releases {request body passed}
-func (rr *ReleaseResource) updateRelease(req *restful.Request, res *restful.Response) {
-	// TODO
+	out, err := rr.controller.GetReleaseStatus(name, version)
+	if err != nil {
+		errorResponse(res, errFailToGetReleaseStatus)
+		return
+	}
+
+	if err := res.WriteEntity(out); err != nil {
+		errorResponse(res, errFailToWriteResponse)
+	}
 }
 
 // POST ??? I DUNNOT KNOW
