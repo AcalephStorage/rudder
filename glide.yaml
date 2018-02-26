@@ -8,7 +8,7 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ~0.10.0
 - package: k8s.io/helm
-  version: 2.0.1
+  version: 2.8.1
   subpackages:
   - pkg/chartutil
   - pkg/helm
@@ -20,11 +20,11 @@ import:
   version: ~1.18.1
 - package: github.com/ghodss/yaml
 - package: google.golang.org/grpc
-  version: v1.0.1-GA
 - package: github.com/coreos/go-oidc
 - package: golang.org/x/net
   subpackages:
   - context
+- package: golang.org/x/text/secure/bidirule
 - package: gopkg.in/square/go-jose.v2
   version: ~2.0.1
 - package: github.com/AcalephStorage/go-auth
