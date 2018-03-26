@@ -1,8 +1,10 @@
-hash: 6c7cf67bb1a94666919774af4d03f084a9f019548174b72d2f5ce7e2b2a574ee
-updated: 2016-12-08T15:33:29.131818972+08:00
+hash: 6192beab0887a4287fa923ec44dd8efd53ea9edb3f07aeb9ac7ba9d375201756
+updated: 2018-02-26T11:31:08.834851571Z
 imports:
 - name: github.com/AcalephStorage/go-auth
   version: a94da01afb9889ea6537e78aa6a7c0bfac1f197d
+- name: github.com/BurntSushi/toml
+  version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/coreos/go-oidc
   version: 8472879a4fc0182e34ed1a1edf711625a9c9fab2
 - name: github.com/emicklei/go-restful
@@ -12,20 +14,34 @@ imports:
   - swagger
 - name: github.com/ghodss/yaml
   version: a54de18a07046d8c4b26e9327698a2ebb9285b36
+- name: github.com/gobwas/glob
+  version: 5ccd90ef52e1e632236f7326478d4faa74f99438
+  subpackages:
+  - compiler
+  - match
+  - syntax
+  - syntax/ast
+  - syntax/lexer
+  - util/runes
+  - util/strings
 - name: github.com/golang/protobuf
-  version: df1d3ca07d2d07bba352d5b73c4313b4e2a6203e
+  version: 4bd1920723d7b7c925de087aa32e2187708897f7
   subpackages:
   - proto
+  - ptypes
   - ptypes/any
+  - ptypes/duration
   - ptypes/timestamp
 - name: github.com/Masterminds/semver
-  version: 808ed7761c233af2de3f9729a041d68c62527f3a
+  version: 517734cc7d6470c0d07130e40fd40bdeb9bcd3fd
 - name: github.com/pquerna/cachecontrol
   version: c97913dcbd76de40b051a9b4cd827f7eaeb7a868
   subpackages:
   - cacheobject
 - name: github.com/Sirupsen/logrus
   version: 4b6ea7319e214d98c938f12692336f7ca9348d6b
+- name: github.com/spf13/pflag
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - name: github.com/urfave/cli
   version: a14d7d367bc02b1f57d88de97926727f2d936387
 - name: golang.org/x/crypto
@@ -40,13 +56,15 @@ imports:
   - openpgp/packet
   - openpgp/s2k
 - name: golang.org/x/net
-  version: fb93926129b8ec0056f2f458b1f519654814edf0
+  version: 1c05540f6879653db88113bc4a2b70aec4bd491f
   subpackages:
   - context
   - context/ctxhttp
   - http2
   - http2/hpack
+  - idna
   - internal/timeseries
+  - lex/httplex
   - trace
 - name: golang.org/x/oauth2
   version: d5040cddfc0da40b408c9a1da4728662435176a9
@@ -56,6 +74,13 @@ imports:
   version: c200b10b5d5e122be351b67af224adc6128af5bf
   subpackages:
   - unix
+- name: golang.org/x/text
+  version: b19bf474d317b857955b12035d2c5acb57ce8b01
+  subpackages:
+  - secure/bidirule
+  - transform
+  - unicode/bidi
+  - unicode/norm
 - name: google.golang.org/appengine
   version: ca59ef35f409df61fa4a5f8290ff289b37eccfb8
   subpackages:
@@ -66,16 +91,24 @@ imports:
   - internal/remote_api
   - internal/urlfetch
   - urlfetch
+- name: google.golang.org/genproto
+  version: 2b5a72b8730b0b16380010cfe5286c42108d88e7
+  subpackages:
+  - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 0032a855ba5c8a3c8e0d71c2deef354b70af1584
+  version: 5ffe3083946d5603a0578721101dc8165b1d5b5f
   subpackages:
   - codes
   - credentials
   - grpclog
   - internal
+  - keepalive
   - metadata
   - naming
   - peer
+  - stats
+  - status
+  - tap
   - transport
 - name: gopkg.in/square/go-jose.v2
   version: 296c7f1463ec9b712176dc804dea0173d06dc728
@@ -84,17 +117,32 @@ imports:
   - json
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+- name: k8s.io/apimachinery
+  version: cced8e64b6ca92a8b6afcbfea3353ca016694a45
+  subpackages:
+  - pkg/version
+- name: k8s.io/client-go
+  version: e00c8f23c00e0935e9abf285596fe76f0b63c040
+  subpackages:
+  - util/homedir
 - name: k8s.io/helm
-  version: dc87ea8dd0111164c720fd13b4eb8a905f97ac62
+  version: 6af75a8fd72e2aa18a2b278cfe5c7a1c5feca7f2
   subpackages:
   - pkg/chartutil
+  - pkg/getter
   - pkg/helm
+  - pkg/helm/environment
+  - pkg/helm/helmpath
   - pkg/ignore
+  - pkg/plugin
   - pkg/proto/hapi/chart
   - pkg/proto/hapi/release
   - pkg/proto/hapi/services
   - pkg/proto/hapi/version
   - pkg/provenance
   - pkg/repo
+  - pkg/sympath
+  - pkg/tlsutil
+  - pkg/urlutil
   - pkg/version
 testImports: []

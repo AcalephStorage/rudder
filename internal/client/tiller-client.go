@@ -18,7 +18,7 @@ type TillerClient struct {
 // NewTillerClient creates a new TillerClient instance
 func NewTillerClient(address string) *TillerClient {
 	md := metadata.Pairs("x-helm-api-client", version.Version)
-	ctx := metadata.NewContext(context.TODO(), md)
+	ctx := metadata.NewOutgoingContext(context.TODO(), md)
 	return &TillerClient{address: address, context: ctx}
 }
 
