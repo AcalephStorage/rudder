@@ -75,7 +75,7 @@ func (rr *RepoResource) listRepos(req *restful.Request, res *restful.Response) {
 	log.Info("Getting list of helm repositories...")
 	repos := rr.controller.ListRepos()
 	if err := res.WriteEntity(repos); err != nil {
-		errorResponse(res, errFailToWriteResponse)
+		errorResponse(err, res, errFailToWriteResponse)
 	}
 }
 
@@ -86,12 +86,12 @@ func (rr *RepoResource) listCharts(req *restful.Request, res *restful.Response) 
 
 	charts, err := rr.controller.ListCharts(repoName, filter)
 	if err != nil {
-		errorResponse(res, errFailToGetCharts)
+		errorResponse(err, res, errFailToGetCharts)
 		return
 	}
 	// output
 	if err := res.WriteEntity(charts); err != nil {
-		errorResponse(res, errFailToWriteResponse)
+		errorResponse(err, res, errFailToWriteResponse)
 	}
 }
 
@@ -102,13 +102,13 @@ func (rr *RepoResource) listVersions(req *restful.Request, res *restful.Response
 
 	charts, err := rr.controller.ListCharts(repoName, chartName)
 	if err != nil {
-		errorResponse(res, errFailToListVersions)
+		errorResponse(err, res, errFailToListVersions)
 		return
 	}
 
 	versions := charts[chartName]
 	if err := res.WriteEntity(versions); err != nil {
-		errorResponse(res, errFailToWriteResponse)
+		errorResponse(err, res, errFailToWriteResponse)
 	}
 
 }
@@ -121,11 +121,11 @@ func (rr *RepoResource) getChart(req *restful.Request, res *restful.Response) {
 
 	chartDetail, err := rr.controller.ChartDetails(repoName, chartName, chartVersion)
 	if err != nil {
-		errorResponse(res, errFailToGetChartDetail)
+		errorResponse(err, res, errFailToGetChartDetail)
 		return
 	}
 
 	if err := res.WriteEntity(chartDetail); err != nil {
-		errorResponse(res, errFailToWriteResponse)
+		errorResponse(err, res, errFailToWriteResponse)
 	}
 }

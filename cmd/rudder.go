@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/AcalephStorage/go-auth"
+	auth "github.com/AcalephStorage/go-auth"
 	log "github.com/Sirupsen/logrus"
 	"github.com/emicklei/go-restful"
 	restfullog "github.com/emicklei/go-restful/log"

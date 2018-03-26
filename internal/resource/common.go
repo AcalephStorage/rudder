@@ -13,9 +13,9 @@ var (
 )
 
 // errorResponse creates an error response from the given error
-func errorResponse(res *restful.Response, err restful.ServiceError) {
-	log.WithError(err).Error(err.Message)
+func errorResponse(origErr error, res *restful.Response, err restful.ServiceError) {
+	log.WithError(origErr).Error(err.Message)
 	if err := res.WriteServiceError(err.Code, err); err != nil {
-		log.WithError(err).Error("unable to write error")
+		log.WithError(origErr).Error("unable to write error")
 	}
 }

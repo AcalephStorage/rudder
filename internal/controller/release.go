@@ -8,6 +8,7 @@ import (
 	tiller "k8s.io/helm/pkg/proto/hapi/services"
 
 	"fmt"
+
 	"github.com/AcalephStorage/rudder/internal/client"
 )
 
@@ -77,6 +78,46 @@ func (rc *ReleaseController) InstallRelease(name, namespace, repo, chart, versio
 	res, err := rc.tillerClient.InstallRelease(req)
 	if err != nil {
 		log.WithError(err).Error("unable to install new release")
+		return nil, err
+	}
+	return res, nil
+}
+
+// UpdateRelease updates an existing release of the provided chart
+func (rc *ReleaseController) UpdateRelease(name, repo, chart, version string, values map[string]interface{}) (*tiller.UpdateReleaseResponse, error) {
+	chartDetails, err := rc.repoController.ChartDetails(repo, chart, version)
+	if err != nil {
+		log.WithError(err).Error("unable to get chart details")
+		return nil, err
+	}
+	tarball := chartDetails.ChartFile
+
+	inChart, err := chartutil.LoadFile(tarball)
+	if err != nil {
+		log.WithError(err).Error("unable to load chart details")
+		return nil, err
+	}
+	raw, _ := yaml.Marshal(values)
+
+	inValues := make(map[string]*hapi_chart.Value)
+	for k, v := range values {
+		inValues[k] = &hapi_chart.Value{Value: fmt.Sprintf("%v", v)}
+	}
+
+	config := &hapi_chart.Config{
+		Raw:    string(raw),
+		Values: inValues,
+	}
+
+	req := &tiller.UpdateReleaseRequest{
+		Name:   name,
+		Chart:  inChart,
+		Values: config,
+	}
+
+	res, err := rc.tillerClient.UpdateRelease(req)
+	if err != nil {
+		log.WithError(err).Error("unable to update release")
 		return nil, err
 	}
 	return res, nil

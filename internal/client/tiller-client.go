@@ -59,6 +59,17 @@ func (tc *TillerClient) InstallRelease(req *tiller.InstallReleaseRequest) (res *
 	return
 }
 
+// UpdateRelease updates an existing release
+func (tc *TillerClient) UpdateRelease(req *tiller.UpdateReleaseRequest) (res *tiller.UpdateReleaseResponse, err error) {
+	tc.execute(func(rsc tiller.ReleaseServiceClient) {
+		res, err = rsc.UpdateRelease(tc.context, req)
+		if err != nil {
+			log.Debug("unable to install release")
+		}
+	})
+	return
+}
+
 // UninstallRelease uninstalls a release
 func (tc *TillerClient) UninstallRelease(req *tiller.UninstallReleaseRequest) (res *tiller.UninstallReleaseResponse, err error) {
 	tc.execute(func(rsc tiller.ReleaseServiceClient) {
