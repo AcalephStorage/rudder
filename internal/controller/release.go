@@ -58,14 +58,20 @@ func (rc *ReleaseController) InstallRelease(name, namespace, repo, chart, versio
 	}
 	raw, _ := yaml.Marshal(values)
 
-	inValues := make(map[string]*hapi_chart.Value)
-	for k, v := range values {
-		inValues[k] = &hapi_chart.Value{Value: fmt.Sprintf("%v", v)}
+	config := &hapi_chart.Config{
+		Raw: string(raw),
 	}
 
-	config := &hapi_chart.Config{
-		Raw:    string(raw),
-		Values: inValues,
+	err = chartutil.ProcessRequirementsEnabled(inChart, config)
+	if err != nil {
+		log.WithError(err).Error("unable to remove disabled charts from dependencies")
+		return nil, err
+	}
+
+	err = chartutil.ProcessRequirementsImportValues(inChart)
+	if err != nil {
+		log.WithError(err).Error("unable to import chart values from child to parent")
+		return nil, err
 	}
 
 	req := &tiller.InstallReleaseRequest{
