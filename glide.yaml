@@ -8,7 +8,7 @@ import:
 - package: github.com/Sirupsen/logrus
   version: ~0.10.0
 - package: k8s.io/helm
-  version: 2.8.1
+  version: 2.13.1
   subpackages:
   - pkg/chartutil
   - pkg/helm
